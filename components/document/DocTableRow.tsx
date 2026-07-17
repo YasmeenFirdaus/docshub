@@ -2,13 +2,23 @@
 
 import * as React from "react";
 import { PencilLine, Star } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { addContributors, addReviewer, archiveDocument, deleteDocument, moveDocument, renameDocument, toggleFavorite, updateDocumentStatus } from "./doc-api";
+import {
+  addContributors,
+  addReviewer,
+  archiveDocument,
+  deleteDocument,
+  moveDocument,
+  renameDocument,
+  toggleFavorite,
+  updateDocumentStatus,
+} from "./doc-api";
 import type { DocumentRowData, Person, WorkspaceNode } from "./types";
 import { DocumentActionMenu } from "./ActionMenu";
 import { DocumentLocationCell } from "./DocumentLocationCell";
@@ -16,7 +26,12 @@ import { DocumentPeopleCell } from "./DocumentPeopleCell";
 import { DocumentStatusCell } from "./DocumentStatusCell";
 
 function initials(name: string) {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 export function DocTableRow({
@@ -30,6 +45,7 @@ export function DocTableRow({
   members: Person[];
   onRefresh: () => void;
 }) {
+  const router = useRouter();
   const [editingTitle, setEditingTitle] = React.useState(false);
   const [titleDraft, setTitleDraft] = React.useState(doc.title);
   const [localTitle, setLocalTitle] = React.useState(doc.title);
@@ -50,8 +66,14 @@ export function DocTableRow({
 
   async function commitRename() {
     const nextTitle = titleDraft.trim();
-    if (!nextTitle || nextTitle === localTitle) {
+
+    if (!nextTitle) {
       setTitleDraft(localTitle);
+      setEditingTitle(false);
+      return;
+    }
+
+    if (nextTitle === localTitle) {
       setEditingTitle(false);
       return;
     }
@@ -69,9 +91,18 @@ export function DocTableRow({
     }
   }
 
+  function stopAll(e: React.SyntheticEvent) {
+    e.stopPropagation();
+  }
+
   return (
-    <tr className="border-b border-slate-200 transition-colors hover:bg-slate-50">
-      <td className="px-4 py-3 min-w-[200px]">
+    <tr className="group border-b border-slate-200 transition-colors hover:bg-slate-50">
+      <td
+        className="px-4 py-3 min-w-[200px]"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         {editingTitle ? (
           <Input
             ref={inputRef}
@@ -92,18 +123,43 @@ export function DocTableRow({
             className="h-8"
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditingTitle(true)}
-            className="group flex max-w-full items-center gap-2 text-left"
-          >
-            <span className="truncate font-medium text-slate-900">{localTitle}</span>
-            <PencilLine className="h-3.5 w-3.5 shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
-          </button>
+          <div className="flex max-w-full items-center gap-2 text-left">
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/document/${doc.id}`);
+              }}
+              className="truncate font-medium text-slate-900 hover:text-blue-600 hover:underline"
+            >
+              {localTitle}
+            </button>
+
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingTitle(true);
+              }}
+              className="shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-slate-600 outline-none"
+              aria-label="Rename document"
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </td>
 
-      <td className="px-4 py-3">
+      <td
+        className="px-4 py-3"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         <DocumentStatusCell
           documentId={doc.id}
           status={doc.status}
@@ -114,7 +170,12 @@ export function DocTableRow({
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td
+        className="px-4 py-3"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         <DocumentLocationCell
           documentId={doc.id}
           workspaceId={doc.workspace_id}
@@ -129,7 +190,12 @@ export function DocTableRow({
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td
+        className="px-4 py-3"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         <DocumentPeopleCell
           documentId={doc.id}
           mode="contributors"
@@ -142,7 +208,12 @@ export function DocTableRow({
         />
       </td>
 
-      <td className="px-4 py-3">
+      <td
+        className="px-4 py-3"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         <DocumentPeopleCell
           documentId={doc.id}
           mode="reviewers"
@@ -155,25 +226,42 @@ export function DocTableRow({
         />
       </td>
 
-      <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{doc.owner_name}</td>
+      <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
+        {doc.owner_name}
+      </td>
 
       <td className="px-4 py-3 whitespace-nowrap">
         <div className="flex items-center gap-2">
           <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-[10px]">{initials(doc.owner_name)}</AvatarFallback>
+            <AvatarFallback className="text-[10px]">
+              {initials(doc.owner_name)}
+            </AvatarFallback>
           </Avatar>
           <span className="text-sm text-slate-500">{doc.updated_at_label}</span>
         </div>
       </td>
 
-      <td className="px-4 py-3 text-right">
+      <td
+        className="px-4 py-3 text-right"
+        onPointerDownCapture={stopAll}
+        onMouseDownCapture={stopAll}
+        onClick={stopAll}
+      >
         <div className="inline-flex items-center gap-1">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className={cn("h-8 w-8 rounded-full transition-colors", doc.is_favorite ? "text-yellow-400 hover:text-yellow-500" : "text-slate-400 hover:text-slate-600")}
-            onClick={async () => {
+            className={cn(
+              "h-8 w-8 rounded-full transition-colors",
+              doc.is_favorite
+                ? "text-yellow-400 hover:text-yellow-500"
+                : "text-slate-400 hover:text-slate-600",
+            )}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={async (e) => {
+              e.stopPropagation();
               await toggleFavorite(doc.id);
               onRefresh();
             }}
@@ -184,11 +272,11 @@ export function DocTableRow({
           <DocumentActionMenu
             documentId={doc.id}
             onRename={() => setEditingTitle(true)}
-            onArchive={async (documentId) => {
+            onArchive={async (documentId: string) => {
               await archiveDocument(documentId);
               onRefresh();
             }}
-            onDelete={async (documentId) => {
+            onDelete={async (documentId: string) => {
               await deleteDocument(documentId);
               onRefresh();
             }}

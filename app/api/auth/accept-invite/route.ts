@@ -30,6 +30,13 @@ export async function POST(req: Request) {
           status: 'ACTIVE'
         }
       }),
+      prisma.workspaceMember.create({
+        data: {
+          workspace_id: invitation.workspace_id,
+          user_id: /* newly created user id */,
+          role: invitation.role,
+        },
+      }),
       prisma.invitation.update({
         where: { id: invitation.id },
         data: { status: 'ACCEPTED' }

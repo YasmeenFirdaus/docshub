@@ -41,13 +41,19 @@ export async function POST(req: Request) {
     // FIX: If no workspace is provided (e.g., clicking "+ New" from All Docs),
     // automatically assign the document to the first available workspace.
     if (!targetWorkspaceId) {
-      const defaultWorkspace = await prisma.workspace.findFirst()
-      
-      if (!defaultWorkspace) {
-        return NextResponse.json({ error: "You must create a Workspace before creating documents." }, { status: 400 })
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { user_id: session.user.id },
+        orderBy: { joined_at: "asc" },
+      });
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: "You are not assigned to any workspace." },
+          { status: 400 }
+        );
       }
-      
-      targetWorkspaceId = defaultWorkspace.id
+
+      targetWorkspaceId = membership.workspace_id;
     }
     
     const document = await prisma.document.create({

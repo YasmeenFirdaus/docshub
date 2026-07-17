@@ -15,10 +15,11 @@ export function Sidebar() {
   const router = useRouter()
   const { data: session } = useSession()
   
-  const { expandedWorkspaces, toggleWorkspace } = useSidebarStore()
+  const { activeWorkspaceId, setActiveWorkspace } = useSidebarStore()
+  const [tenant, setTenant] = useState<{ name: string } | null>(null)
+  const [workspaces, setWorkspaces] = useState<any[]>([])
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
-  const [workspaces, setWorkspaces] = useState<any[]>([])
 
   const fetchWorkspaces = async () => {
     const res = await fetch('/api/workspaces')

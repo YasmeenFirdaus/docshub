@@ -1,27 +1,45 @@
-import { create } from 'zustand'
+import { create } from "zustand"
 
 interface SidebarState {
-  expandedWorkspaces: Set<string>;
-  expandedFolders: Set<string>;
-  toggleWorkspace: (id: string) => void;
-  toggleFolder: (id: string) => void;
+
+  activeWorkspaceId: string | null
+
+  expandedFolders: Set<string>
+
+  setActiveWorkspace: (id: string) => void
+
+  toggleFolder: (id: string) => void
 }
 
-export const useSidebarStore = create<SidebarState>((set) => ({
-  expandedWorkspaces: new Set(),
+export const useSidebarStore =
+create<SidebarState>((set) => ({
+
+  activeWorkspaceId: null,
+
   expandedFolders: new Set(),
-  
-  toggleWorkspace: (id) => set((state) => {
-    const next = new Set(state.expandedWorkspaces)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    return { expandedWorkspaces: next }
-  }),
-  
-  toggleFolder: (id) => set((state) => {
-    const next = new Set(state.expandedFolders)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    return { expandedFolders: next }
-  })
+
+  setActiveWorkspace: (id) =>
+    set({
+      activeWorkspaceId: id,
+    }),
+
+  toggleFolder: (id) =>
+    set((state) => {
+
+      const folders =
+        new Set(state.expandedFolders)
+
+      if (folders.has(id))
+
+        folders.delete(id)
+
+      else
+
+        folders.add(id)
+
+      return {
+
+        expandedFolders: folders,
+      }
+    }),
 }))

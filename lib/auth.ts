@@ -41,19 +41,63 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
-      }
-      return session
+  async jwt({ token, user }) {
+
+    if (user) {
+
+      token.id = user.id
+      token.role = user.role
+
+      const memberships = await prisma.workspaceMember.findMany({
+        where: {
+          user_id: user.id,
+        },
+        include: {
+          workspace: {
+            include: {
+              tenant: true,
+            },
+          },
+        },
+        orderBy: {
+          joined_at: "asc",
+        },
+      })
+
+      token.tenantId =
+        memberships[0]?.workspace.tenant_id ?? null
+
+      token.workspaceIds =
+        memberships.map((m) => m.workspace_id)
+
+      token.activeWorkspaceId =
+        memberships[0]?.workspace_id ?? null
+
+      token.tenantName =
+        memberships[0]?.workspace.tenant.name ?? null
     }
-  }
+
+    return token
+  },
+
+  async session({ session, token }) {
+
+    session.user.id = token.id as string
+    session.user.role = token.role as string
+
+    session.tenantId =
+      token.tenantId as string | null
+
+    session.tenantName =
+      token.tenantName as string | null
+
+    session.workspaceIds =
+      (token.workspaceIds as string[]) ?? []
+
+    session.activeWorkspaceId =
+      token.activeWorkspaceId as string | null
+
+    return session
+  },
+}
 }
