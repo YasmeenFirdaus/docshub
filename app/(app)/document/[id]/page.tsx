@@ -1,0 +1,96 @@
+'use client'
+
+import { useEffect, useState } from "react"
+import { BlockNoteEditor } from "../../../../editor/components/BlockNoteEditor"
+import { EditorHeader } from "../../../../editor/components/EditorHeader"
+import { EditorRightRail } from "../../../../editor/components/EditorRightRail"
+import { Loader2, FileText } from "lucide-react"
+
+export default function DocumentPage({ params }: { params: { id: string } }) {
+  const [doc, setDoc] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('Saved')
+  const [activePanel, setActivePanel] = useState<'none' | 'review' | 'info' | 'ai'>('none')
+
+  useEffect(() => {
+    const fetchDoc = async () => {
+      try {
+        const res = await fetch(`/api/documents/${params.id}`)
+        if (!res.ok) throw new Error("Document not found")
+        const data = await res.json()
+        
+        // If it's a readonly file, it doesn't need to save, so set status accordingly
+        if (data.type === 'READONLY') setSaveStatus('Read Only')
+        
+        setDoc(data)
+      } catch (err) {
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDoc()
+  }, [params.id])
+
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-400" /></div>
+  
+  if (error || doc?.error) return (
+    <div className="h-screen flex items-center justify-center text-red-500 bg-slate-50">
+      <div className="bg-white p-8 rounded-xl border border-red-100 shadow-sm text-center">
+        <h2 className="text-lg font-semibold mb-2">Access Denied</h2>
+        <p className="text-sm text-slate-600">This document does not exist or you do not have permission to view it.</p>
+      </div>
+    </div>
+  )
+
+  const locationPath = doc.workspace ? `${doc.workspace.name} ${doc.folder ? `/ ${doc.folder.name}` : ''}` : 'Private'
+
+  return (
+    <div className="flex flex-col h-screen bg-[#FAFBFC] overflow-hidden w-full">
+      <EditorHeader 
+        title={doc.title} 
+        location={locationPath}
+        saveStatus={saveStatus} 
+        activePanel={activePanel}
+        setActivePanel={setActivePanel}
+      />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto relative bg-white m-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          
+          {/* TRAFFIC CONTROLLER: Render Editor OR File Viewer */}
+            {doc.type === 'EDITABLE' ? (
+                <BlockNoteEditor 
+                    documentId={doc.id} 
+                    initialTitle={doc.title} 
+                    initialContent={doc.content} 
+                    onSaveStatusChange={setSaveStatus}
+                />
+                ) : (
+                <div className="flex-1 flex flex-col bg-slate-100 overflow-hidden rounded-xl">
+                    {doc.file_url ? (
+                    <iframe 
+                        src={`https://docs.google.com/viewer?url=${window.location.origin}${doc.file_url}&embedded=true`} 
+                        className="w-full h-full border-none"
+                        title={doc.title}
+                    />
+                    ) : (
+                    <div className="flex-1 flex items-center justify-center text-slate-400">
+                        <p>File preview not available.</p>
+                    </div>
+                    )}
+                </div>
+            )}
+
+        </main>
+
+        <EditorRightRail 
+          activePanel={activePanel} 
+          document={doc} 
+          onClose={() => setActivePanel('none')} 
+        />
+      </div>
+    </div>
+  )
+}

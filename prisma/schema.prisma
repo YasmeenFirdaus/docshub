@@ -1,0 +1,317 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS ───────────────────────────────────────────────
+model User {
+  id               String            @id @default(cuid())
+  name             String?
+  email            String            @unique
+  password_hash    String
+  role             Role              @default(USER)
+  status           UserStatus        @default(ACTIVE)
+  avatar_url       String?
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
+
+  workspaces       WorkspaceMember[]
+  documents        Document[]        @relation("DocumentOwner")
+  invitations_sent Invitation[]      @relation("InvitedBy")
+  comments         Comment[]
+  review_requests  ReviewRequest[]   @relation("ReviewRequester")
+  reviews          ReviewRequest[]   @relation("Reviewer")
+  favorites        Favorite[]
+  document_shares  DocumentShare[]
+  activity_logs    ActivityLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+// ─── INVITATIONS ──────────────────────────────────────────
+model Invitation {
+  id         String           @id @default(cuid())
+  email      String
+  role       Role             @default(USER)
+  token      String           @unique
+  status     InvitationStatus @default(PENDING)
+  invited_by String
+  inviter    User             @relation("InvitedBy", fields: [invited_by], references: [id])
+  expires_at DateTime
+  created_at DateTime         @default(now())
+
+  @@map("invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+// ─── WORKSPACES ───────────────────────────────────────────
+model Workspace {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  slug        String            @unique
+  icon        String?
+  created_at  DateTime          @default(now())
+  updated_at  DateTime          @updatedAt
+
+  members     WorkspaceMember[]
+  folders     Folder[]
+  documents   Document[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id           String    @id @default(cuid())
+  workspace_id String
+  user_id      String
+  role         Role      @default(USER)
+  joined_at    DateTime  @default(now())
+  
+  workspace    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([workspace_id, user_id])
+  @@map("workspace_members")
+}
+
+// ─── FOLDERS ──────────────────────────────────────────────
+model Folder {
+  id           String     @id @default(cuid())
+  name         String
+  workspace_id String
+  parent_id    String?
+  order        Int        @default(0)
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+  
+  workspace    Workspace  @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  parent       Folder?    @relation("FolderChildren", fields: [parent_id], references: [id])
+  children     Folder[]   @relation("FolderChildren")
+  documents    Document[]
+
+  @@map("folders")
+}
+
+// ─── DOCUMENTS ────────────────────────────────────────────
+model Document {
+  id              String            @id @default(cuid())
+  title           String            @default("Untitled Document")
+  content         Json?
+  content_text    String?
+  type            DocumentType      @default(EDITABLE)
+  file_url        String?
+  file_name       String?
+  file_size       Int?
+  status          DocumentStatus    @default(DRAFT)
+  visibility      Visibility        @default(WORKSPACE)
+  is_approved     Boolean           @default(false)
+  approved_at     DateTime?
+  approved_by     String?
+  workspace_id    String
+  folder_id       String?
+  owner_id        String
+  is_archived     Boolean           @default(false)
+  is_deleted      Boolean           @default(false)
+  deleted_at      DateTime?
+  search_vector   Unsupported("tsvector")?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  
+  workspace       Workspace         @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  folder          Folder?           @relation(fields: [folder_id], references: [id])
+  owner           User              @relation("DocumentOwner", fields: [owner_id], references: [id])
+  tags            DocumentTag[]
+  comments        Comment[]
+  review_requests ReviewRequest[]
+  shares          DocumentShare[]
+  favorites       Favorite[]
+  versions        DocumentVersion[]
+
+  @@map("documents")
+}
+
+enum DocumentType {
+  EDITABLE
+  PDF
+  PPT
+}
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  PRIVATE
+}
+
+enum Visibility {
+  WORKSPACE
+  PRIVATE
+}
+
+// ─── DOCUMENT VERSIONS ────────────────────────────────────
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  document_id String
+  content     Json
+  version     Int
+  saved_by    String
+  created_at  DateTime @default(now())
+  
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@map("document_versions")
+}
+
+// ─── TAGS ─────────────────────────────────────────────────
+model Tag {
+  id         String        @id @default(cuid())
+  name       String        @unique
+  created_at DateTime      @default(now())
+  documents  DocumentTag[]
+
+  @@map("tags")
+}
+
+model DocumentTag {
+  document_id String
+  tag_id      String
+  
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  tag         Tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([document_id, tag_id])
+  @@map("document_tags")
+}
+
+// ─── REVIEW & APPROVAL ────────────────────────────────────
+model ReviewRequest {
+  id           String       @id @default(cuid())
+  document_id  String
+  requested_by String
+  reviewer_id  String
+  status       ReviewStatus @default(PENDING)
+  comment      String?
+  reviewed_at  DateTime?
+  created_at   DateTime     @default(now())
+  
+  document     Document     @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  requester    User         @relation("ReviewRequester", fields: [requested_by], references: [id])
+  reviewer     User         @relation("Reviewer", fields: [reviewer_id], references: [id])
+
+  @@map("review_requests")
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+// ─── COMMENTS ─────────────────────────────────────────────
+model Comment {
+  id          String        @id @default(cuid())
+  document_id String
+  author_id   String
+  content     String
+  parent_id   String?
+  status      CommentStatus @default(OPEN)
+  resolved_at DateTime?
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  
+  document    Document      @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  author      User          @relation(fields: [author_id], references: [id])
+  parent      Comment?      @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies     Comment[]     @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+enum CommentStatus {
+  OPEN
+  RESOLVED
+}
+
+// ─── SHARING ──────────────────────────────────────────────
+model DocumentShare {
+  id          String     @id @default(cuid())
+  document_id String
+  shared_with String
+  permission  Permission @default(VIEW)
+  created_at  DateTime   @default(now())
+  
+  document    Document   @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [shared_with], references: [id], onDelete: Cascade)
+
+  @@unique([document_id, shared_with])
+  @@map("document_shares")
+}
+
+enum Permission {
+  VIEW
+  EDIT
+}
+
+// ─── FAVORITES ────────────────────────────────────────────
+model Favorite {
+  id          String   @id @default(cuid())
+  user_id     String
+  document_id String
+  created_at  DateTime @default(now())
+  
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, document_id])
+  @@map("favorites")
+}
+
+// ─── ACTIVITY LOG ─────────────────────────────────────────
+model ActivityLog {
+  id         String       @id @default(cuid())
+  user_id    String?
+  action     ActivityType
+  entity     String?
+  entity_id  String?
+  meta       Json?
+  created_at DateTime     @default(now())
+  
+  user       User?        @relation(fields: [user_id], references: [id])
+
+  @@map("activity_logs")
+}
+
+enum ActivityType {
+  LOGIN
+  DOCUMENT_CREATED
+  DOCUMENT_EDITED
+  DOCUMENT_DELETED
+  DOCUMENT_IMPORTED
+  DOCUMENT_SHARED
+  FOLDER_CREATED
+  WORKSPACE_CREATED
+  MEMBER_INVITED
+  REVIEW_REQUESTED
+  REVIEW_COMPLETED
+}
