@@ -1,4 +1,4 @@
-import { Info, Clock, Lock, Tag, AlertCircle, Sparkles, X } from "lucide-react"
+import { Info, Clock, Lock, Tag, AlertCircle, Sparkles, X, FileSignature, CheckCircle2, User, ChevronRight } from "lucide-react"
 
 interface EditorRightRailProps {
   activePanel: 'none' | 'review' | 'info' | 'ai'
@@ -82,6 +82,3 @@ export function EditorRightRail({ activePanel, document, onClose }: EditorRightR
     </div>
   )
 }
-
-// Quick helper icons for the panel
-import { CheckCircle2, User, ChevronRight } from "lucide-react"

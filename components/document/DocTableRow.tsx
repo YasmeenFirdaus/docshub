@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 
 import { addContributors, addReviewer, archiveDocument, deleteDocument, moveDocument, renameDocument, toggleFavorite, updateDocumentStatus } from "./doc-api";
 import type { DocumentRowData, Person, WorkspaceNode } from "./types";
-import { DocumentActionMenu } from "./DocumentActionMenu";
+import { DocumentActionMenu } from "./ActionMenu";
 import { DocumentLocationCell } from "./DocumentLocationCell";
 import { DocumentPeopleCell } from "./DocumentPeopleCell";
 import { DocumentStatusCell } from "./DocumentStatusCell";
