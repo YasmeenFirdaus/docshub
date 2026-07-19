@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Users, Mail, Shield, MoreVertical, Clock } from "lucide-react"
+import { useSession } from "next-auth/react"
 
 export default function MembersPage() {
+  const { data: session } = useSession()
+  const isAdminOrOwner = session?.user?.role === 'ADMIN' || session?.user?.role === 'OWNER'
+
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("USER")
   
@@ -29,6 +33,8 @@ export default function MembersPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!isAdminOrOwner) return
+
     const res = await fetch('/api/members/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,12 +60,13 @@ export default function MembersPage() {
       </div>
 
       {/* Invite Section */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center">
-          <Mail size={16} className="mr-2 text-slate-400" />
-          Invite new member
-        </h2>
-        <form onSubmit={handleInvite} className="flex gap-4 items-end">
+      {isAdminOrOwner && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center">
+            <Mail size={16} className="mr-2 text-slate-400" />
+            Invite new member
+          </h2>
+          <form onSubmit={handleInvite} className="flex gap-4 items-end">
           <div className="flex-1">
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Email address</label>
             <input 
@@ -89,7 +96,8 @@ export default function MembersPage() {
             Send Invite
           </button>
         </form>
-      </div>
+        </div>
+      )}
 
       {/* Members & Invites List */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -132,17 +140,19 @@ export default function MembersPage() {
                   {invite.role === 'ADMIN' ? 'Admin' : 'User'}
                 </td>
                 <td className="px-6 py-4 text-right text-slate-400">
-                  <button 
-                    onClick={async () => {
-                        if (window.confirm("Are you sure you want to revoke this invitation?")) {
-                        const res = await fetch(`/api/members/invite/${invite.id}`, { method: 'DELETE' })
-                        if (res.ok) fetchMembers() // Refresh table to remove the deleted invite
-                        }
-                    }} 
-                    className="text-xs text-red-500 hover:text-red-700 font-medium"
-                    >
-                    Revoke
-                  </button>
+                  {isAdminOrOwner && (
+                    <button 
+                      onClick={async () => {
+                          if (window.confirm("Are you sure you want to revoke this invitation?")) {
+                          const res = await fetch(`/api/members/invite/${invite.id}`, { method: 'DELETE' })
+                          if (res.ok) fetchMembers() // Refresh table to remove the deleted invite
+                          }
+                      }} 
+                      className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                      Revoke
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -169,9 +179,11 @@ export default function MembersPage() {
                   {user.role === 'ADMIN' ? 'Admin' : 'User'}
                 </td>
                 <td className="px-6 py-4 text-right text-slate-400">
-                  <button className="hover:text-slate-600">
-                    <MoreVertical size={16} />
-                  </button>
+                  {isAdminOrOwner && (
+                    <button className="hover:text-slate-600">
+                      <MoreVertical size={16} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -6,37 +6,39 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const session = await getServerSession(authOptions);
   
-  // Only Admins should be able to view the full member list
-  if (!session || session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    // 1. Fetch all active users
-    const users = await prisma.user.findMany({
-      select: { 
-        id: true, 
-        name: true, 
-        email: true, 
-        role: true, 
-        status: true,
-        created_at: true 
-      },
-      orderBy: { created_at: 'desc' }
-    });
+  const isAdmin = session.user.role === 'ADMIN';
 
-    // 2. Fetch all pending invitations
-    const invitations = await prisma.invitation.findMany({
-      where: { status: 'PENDING' },
-      select: { 
-        id: true, 
-        email: true, 
-        role: true, 
-        expires_at: true,
-        created_at: true 
-      },
-      orderBy: { created_at: 'desc' }
-    });
+  try {
+    let users;
+    let invitations: any[] = [];
+
+    if (isAdmin) {
+      users = await prisma.user.findMany({
+        select: { id: true, name: true, email: true, role: true, status: true, created_at: true },
+        orderBy: { created_at: 'desc' }
+      });
+      invitations = await prisma.invitation.findMany({
+        where: { status: 'PENDING' },
+        select: { id: true, email: true, role: true, expires_at: true, created_at: true },
+        orderBy: { created_at: 'desc' }
+      });
+    } else {
+      const myWorkspaces = await prisma.workspaceMember.findMany({
+        where: { user_id: session.user.id },
+        select: { workspace_id: true }
+      });
+      const workspaceIds = myWorkspaces.map(w => w.workspace_id);
+      
+      users = await prisma.user.findMany({
+        where: { workspaces: { some: { workspace_id: { in: workspaceIds } } } },
+        select: { id: true, name: true, email: true, role: true, status: true, created_at: true },
+        orderBy: { created_at: 'desc' }
+      });
+    }
 
     return NextResponse.json({ users, invitations });
   } catch (error) {

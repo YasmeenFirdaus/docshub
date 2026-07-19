@@ -6,29 +6,28 @@ import * as bcrypt from "bcryptjs"
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days persistent session
+    maxAge: 30 * 24 * 60 * 60,
   },
   pages: {
-    signIn: '/login',
+    signIn: "/login",
   },
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() }
+          where: { email: credentials.email.toLowerCase() },
         })
 
-        if (!user || user.status !== 'ACTIVE') return null
+        if (!user || user.status !== "ACTIVE") return null
 
         const isValid = await bcrypt.compare(credentials.password, user.password_hash)
-        
         if (!isValid) return null
 
         return {
@@ -37,67 +36,46 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
         }
-      }
-    })
+      },
+    }),
   ],
   callbacks: {
-  async jwt({ token, user }) {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = (user as unknown as { role: string }).role
 
-    if (user) {
-
-      token.id = user.id
-      token.role = user.role
-
-      const memberships = await prisma.workspaceMember.findMany({
-        where: {
-          user_id: user.id,
-        },
-        include: {
-          workspace: {
-            include: {
-              tenant: true,
+        const memberships = await prisma.workspaceMember.findMany({
+          where: { user_id: user.id },
+          include: {
+            workspace: {
+              include: {
+                tenant: true,
+              },
             },
           },
-        },
-        orderBy: {
-          joined_at: "asc",
-        },
-      })
+          orderBy: { joined_at: "asc" },
+        })
 
-      token.tenantId =
-        memberships[0]?.workspace.tenant_id ?? null
+        token.tenantId = memberships[0]?.workspace.tenant_id ?? null
+        token.tenantName = memberships[0]?.workspace.tenant?.name ?? null
+        token.workspaceIds = memberships.map((m) => m.workspace_id)
+        token.activeWorkspaceId = memberships[0]?.workspace_id ?? null
+      }
 
-      token.workspaceIds =
-        memberships.map((m) => m.workspace_id)
+      return token
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string
+        session.user.role = token.role as string
+        session.tenantId = token.tenantId as string | null
+        session.tenantName = token.tenantName as string | null
+        session.workspaceIds = (token.workspaceIds as string[]) ?? []
+        session.activeWorkspaceId = token.activeWorkspaceId as string | null
+      }
 
-      token.activeWorkspaceId =
-        memberships[0]?.workspace_id ?? null
-
-      token.tenantName =
-        memberships[0]?.workspace.tenant.name ?? null
-    }
-
-    return token
+      return session
+    },
   },
-
-  async session({ session, token }) {
-
-    session.user.id = token.id as string
-    session.user.role = token.role as string
-
-    session.tenantId =
-      token.tenantId as string | null
-
-    session.tenantName =
-      token.tenantName as string | null
-
-    session.workspaceIds =
-      (token.workspaceIds as string[]) ?? []
-
-    session.activeWorkspaceId =
-      token.activeWorkspaceId as string | null
-
-    return session
-  },
-}
 }

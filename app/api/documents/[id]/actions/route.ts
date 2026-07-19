@@ -4,6 +4,7 @@ import { ActivityType, DocumentStatus, Role, ReviewStatus } from "@prisma/client
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { updateSearchVector } from "@/lib/search";
 
 type DocumentAction =
   | "MOVE"
@@ -12,8 +13,11 @@ type DocumentAction =
   | "ARCHIVE"
   | "RESTORE"
   | "DELETE"
+  | "DUPLICATE"
   | "TOGGLE_FAVORITE"
-  | "REQUEST_REVIEW";
+  | "REQUEST_REVIEW"
+  | "UPDATE_REVIEW_STATUS"
+  | "PERMANENT_DELETE";
 
 type ActionBody = {
   action?: unknown;
@@ -44,8 +48,11 @@ function asDocumentAction(value: unknown): DocumentAction | null {
     "ARCHIVE",
     "RESTORE",
     "DELETE",
+    "DUPLICATE",
     "TOGGLE_FAVORITE",
     "REQUEST_REVIEW",
+    "UPDATE_REVIEW_STATUS",
+    "PERMANENT_DELETE",
   ];
   return (allowed as readonly string[]).includes(value) ? (value as DocumentAction) : null;
 }
@@ -60,8 +67,10 @@ function isDocumentStatus(value: unknown): value is DocumentStatus {
 function activityFor(action: DocumentAction): ActivityType {
   switch (action) {
     case "DELETE":
+    case "PERMANENT_DELETE":
       return ActivityType.DOCUMENT_DELETED;
     case "REQUEST_REVIEW":
+    case "UPDATE_REVIEW_STATUS":
       return ActivityType.REVIEW_REQUESTED;
     default:
       return ActivityType.DOCUMENT_EDITED;
@@ -92,6 +101,7 @@ async function loadDocumentContext(documentId: string, userId: string) {
       folder_id: true,
       owner_id: true,
       visibility: true,
+      workspace_edit: true,
       status: true,
       is_archived: true,
       is_deleted: true,
@@ -109,16 +119,18 @@ async function loadDocumentContext(documentId: string, userId: string) {
     select: { role: true },
   });
 
-  const sharedWithUser =
-    doc.visibility === "PRIVATE"
-      ? await prisma.documentShare.findFirst({
-          where: {
-            document_id: doc.id,
-            shared_with: userId,
-          },
-          select: { id: true },
-        })
-      : null;
+  const sharedWithUser = await prisma.documentShare.findFirst({
+    where: {
+      document_id: doc.id,
+      shared_with: userId,
+    },
+    select: { id: true, permission: true },
+  });
+  const contributor = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM document_contributors
+    WHERE document_id = ${doc.id} AND user_id = ${userId}
+    LIMIT 1
+  `;
 
   const isOwner = doc.owner_id === userId;
   const isWorkspaceAdmin = workspaceMember?.role === Role.ADMIN;
@@ -129,7 +141,12 @@ async function loadDocumentContext(documentId: string, userId: string) {
     (doc.visibility === "WORKSPACE" && Boolean(workspaceMember)) ||
     Boolean(sharedWithUser);
 
-  const canEdit = isOwner || isWorkspaceAdmin;
+  const canEdit =
+    isOwner ||
+    isWorkspaceAdmin ||
+    contributor.length > 0 ||
+    (doc.visibility === "WORKSPACE" && doc.workspace_edit && Boolean(workspaceMember)) ||
+    sharedWithUser?.permission === "EDIT";
 
   return {
     doc,
@@ -197,7 +214,7 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (context.doc.is_deleted && action !== "RESTORE") {
+  if (context.doc.is_deleted && action !== "RESTORE" && action !== "PERMANENT_DELETE") {
     return NextResponse.json(
       { error: "Document is in trash" },
       { status: 409 },
@@ -211,6 +228,8 @@ export async function POST(
     "ARCHIVE",
     "RESTORE",
     "DELETE",
+    "DUPLICATE",
+    "PERMANENT_DELETE",
     "REQUEST_REVIEW",
   ];
 
@@ -263,15 +282,22 @@ export async function POST(
             throw new Error("Invalid status");
           }
 
+          const visibility = status === "PUBLISHED" ? "WORKSPACE" : "PRIVATE";
+          const workspace_edit =
+            status === "PUBLISHED" && typeof payload.workspace_edit === "boolean"
+              ? payload.workspace_edit
+              : status === "PUBLISHED";
+
           const updated = await tx.document.update({
             where: { id: documentId },
-            data: { status },
+            data: { status, visibility, workspace_edit },
             select: {
               id: true,
               title: true,
               workspace_id: true,
               folder_id: true,
               status: true,
+              workspace_edit: true,
               is_archived: true,
               is_deleted: true,
               updated_at: true,
@@ -374,15 +400,21 @@ export async function POST(
         }
 
         case "ARCHIVE": {
+          const nextArchived =
+            typeof payload.is_archived === "boolean"
+              ? payload.is_archived
+              : !context.doc.is_archived;
+
           const updated = await tx.document.update({
             where: { id: documentId },
-            data: { is_archived: true },
+            data: { is_archived: nextArchived },
             select: {
               id: true,
               title: true,
               workspace_id: true,
               folder_id: true,
               status: true,
+              workspace_edit: true,
               is_archived: true,
               is_deleted: true,
               updated_at: true,
@@ -395,11 +427,77 @@ export async function POST(
               action: ActivityType.DOCUMENT_EDITED,
               entity: "document",
               entity_id: documentId,
-              meta: { action: "ARCHIVE" },
+              meta: { action: nextArchived ? "ARCHIVE" : "UNARCHIVE" },
             },
           });
 
           return { document: updated };
+        }
+
+        case "DUPLICATE": {
+          const source = await tx.document.findUnique({
+            where: { id: documentId },
+            select: {
+              title: true,
+              content: true,
+              content_text: true,
+              type: true,
+              file_url: true,
+              file_name: true,
+              file_size: true,
+              status: true,
+              visibility: true,
+              workspace_edit: true,
+              workspace_id: true,
+              folder_id: true,
+              owner_id: true,
+            },
+          });
+
+          if (!source) {
+            throw new Error("Document not found");
+          }
+
+          const duplicate = await tx.document.create({
+            data: {
+              title: `${source.title} (Copy)`,
+              content: source.content ?? undefined,
+              content_text: source.content_text ?? undefined,
+              type: source.type,
+              file_url: source.file_url ?? undefined,
+              file_name: source.file_name ?? undefined,
+              file_size: source.file_size ?? undefined,
+              status: source.status,
+              visibility: source.visibility,
+              workspace_edit: source.workspace_edit,
+              workspace_id: source.workspace_id,
+              folder_id: source.folder_id ?? undefined,
+              owner_id: identity.userId,
+            },
+            select: {
+              id: true,
+              title: true,
+              workspace_id: true,
+              folder_id: true,
+              status: true,
+              workspace_edit: true,
+              is_archived: true,
+              is_deleted: true,
+              updated_at: true,
+            },
+          });
+
+          await tx.activityLog.create({
+            data: {
+              user_id: identity.userId,
+              action: ActivityType.DOCUMENT_CREATED,
+              entity: "document",
+              entity_id: duplicate.id,
+              meta: { action: "DUPLICATE", source_document_id: documentId },
+            },
+          });
+
+          return { document: duplicate };
         }
 
         case "RESTORE": {
@@ -465,6 +563,24 @@ export async function POST(
           });
 
           return { document: updated };
+        }
+
+        case "PERMANENT_DELETE": {
+          const deleted = await tx.document.delete({
+            where: { id: documentId }
+          });
+
+          await tx.activityLog.create({
+            data: {
+              user_id: identity.userId,
+              action: ActivityType.DOCUMENT_DELETED,
+              entity: "document",
+              entity_id: documentId,
+              meta: { action: "PERMANENT_DELETE" },
+            },
+          });
+
+          return { document: deleted };
         }
 
         case "TOGGLE_FAVORITE": {
@@ -564,10 +680,81 @@ export async function POST(
           return { reviewRequest };
         }
 
+        case "UPDATE_REVIEW_STATUS": {
+          const statusRaw = asString(payload.status);
+          if (!statusRaw) throw new Error("Missing status");
+          const allowedStatuses = Object.values(ReviewStatus);
+          if (!allowedStatuses.includes(statusRaw as ReviewStatus)) {
+            throw new Error("Invalid review status");
+          }
+          
+          const reviewerScopedRequest = await tx.reviewRequest.findFirst({
+            where: {
+              document_id: documentId,
+              reviewer_id: identity.userId,
+            },
+            orderBy: { created_at: 'desc' }
+          });
+
+          const reviewRequest = reviewerScopedRequest ?? await tx.reviewRequest.findFirst({
+            where: { document_id: documentId },
+            orderBy: { created_at: 'desc' }
+          });
+          
+          if (!reviewRequest) {
+            const created = await tx.reviewRequest.create({
+              data: {
+                document_id: documentId,
+                requested_by: identity.userId,
+                reviewer_id: identity.userId,
+                status: statusRaw as ReviewStatus,
+                reviewed_at: statusRaw === ReviewStatus.PENDING ? null : new Date(),
+              },
+            });
+
+            return { reviewRequest: created };
+          }
+          
+          const updated = await tx.reviewRequest.update({
+            where: { id: reviewRequest.id },
+            data: {
+              status: statusRaw as ReviewStatus,
+              reviewed_at: statusRaw === ReviewStatus.PENDING ? null : new Date(),
+            }
+          });
+          
+          await tx.activityLog.create({
+            data: {
+              user_id: identity.userId,
+              action: ActivityType.DOCUMENT_EDITED,
+              entity: "document",
+              entity_id: documentId,
+              meta: {
+                action: "UPDATE_REVIEW_STATUS",
+                status: statusRaw,
+              },
+            },
+          });
+          
+          return { reviewRequest: updated };
+        }
+
         default:
           throw new Error("Unsupported action");
       }
     });
+
+    if (mutatingActions.includes(action) || action === "UPDATE_REVIEW_STATUS") {
+      try {
+        const targetDocumentId =
+          action === "DUPLICATE" && "document" in result && result.document?.id
+            ? result.document.id
+            : documentId;
+        await updateSearchVector(targetDocumentId);
+      } catch (error) {
+        console.error("Failed to update search vector:", error);
+      }
+    }
 
     return NextResponse.json({ ok: true, action, ...result });
   } catch (error) {

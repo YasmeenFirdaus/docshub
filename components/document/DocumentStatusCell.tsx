@@ -10,30 +10,37 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 
 import type { DocumentStatus } from "./types";
 
-const STATUS_OPTIONS: { value: DocumentStatus; label: string; className: string }[] = [
-  { value: "DRAFT", label: "Draft", className: "bg-slate-100 text-slate-700 hover:bg-slate-200" },
-  { value: "PUBLISHED", label: "Published", className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
-  { value: "PRIVATE", label: "Private", className: "bg-violet-100 text-violet-700 hover:bg-violet-200" },
+type UIStatus = "DRAFT" | "PUBLISHED_EDIT" | "PUBLISHED_VIEW" | "PRIVATE";
+
+const STATUS_OPTIONS: { value: UIStatus; label: string; className: string; status: DocumentStatus; workspaceEdit: boolean }[] = [
+  { value: "DRAFT", label: "Draft", className: "bg-slate-100 text-slate-700 hover:bg-slate-200", status: "DRAFT", workspaceEdit: false },
+  { value: "PUBLISHED_EDIT", label: "Published (Can Edit)", className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200", status: "PUBLISHED", workspaceEdit: true },
+  { value: "PUBLISHED_VIEW", label: "Published (View Only)", className: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200", status: "PUBLISHED", workspaceEdit: false },
+  { value: "PRIVATE", label: "Private", className: "bg-violet-100 text-violet-700 hover:bg-violet-200", status: "PRIVATE", workspaceEdit: false },
 ];
 
 export function DocumentStatusCell({
   documentId,
   status,
+  workspaceEdit,
   onChange,
 }: {
   documentId: string;
   status: DocumentStatus;
-  onChange: (documentId: string, nextStatus: DocumentStatus) => Promise<void> | void;
+  workspaceEdit: boolean;
+  onChange: (documentId: string, nextStatus: DocumentStatus, nextWorkspaceEdit: boolean) => Promise<void> | void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [current, setCurrent] = React.useState<DocumentStatus>(status);
+  const [currentStatus, setCurrentStatus] = React.useState<DocumentStatus>(status);
+  const [currentEdit, setCurrentEdit] = React.useState<boolean>(workspaceEdit);
 
   React.useEffect(() => {
-    setCurrent(status);
-  }, [status]);
+    setCurrentStatus(status);
+    setCurrentEdit(workspaceEdit);
+  }, [status, workspaceEdit]);
 
   const currentOption =
-    STATUS_OPTIONS.find((item) => item.value === current) ?? STATUS_OPTIONS[0];
+    STATUS_OPTIONS.find((item) => item.status === currentStatus && (currentStatus !== "PUBLISHED" || item.workspaceEdit === currentEdit)) ?? STATUS_OPTIONS[0];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,36 +55,40 @@ export function DocumentStatusCell({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-44 p-0" align="start">
+      <PopoverContent className="w-48 p-0" align="start">
         <Command>
           <CommandList>
             <CommandEmpty>No status found.</CommandEmpty>
-            <CommandGroup heading="Status">
+            <CommandGroup heading="Status & Permissions">
               {STATUS_OPTIONS.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
                   onSelect={async () => {
-                    if (option.value === current) {
+                    if (option.status === currentStatus && option.workspaceEdit === currentEdit) {
                       setOpen(false);
                       return;
                     }
 
-                    const previous = current;
-                    setCurrent(option.value);
+                    const prevStatus = currentStatus;
+                    const prevEdit = currentEdit;
+                    
+                    setCurrentStatus(option.status);
+                    setCurrentEdit(option.workspaceEdit);
                     setOpen(false);
 
                     try {
-                      await Promise.resolve(onChange(documentId, option.value));
+                      await Promise.resolve(onChange(documentId, option.status, option.workspaceEdit));
                     } catch {
-                      setCurrent(previous);
+                      setCurrentStatus(prevStatus);
+                      setCurrentEdit(prevEdit);
                     }
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      current === option.value ? "opacity-100" : "opacity-0",
+                      currentStatus === option.status && currentEdit === option.workspaceEdit ? "opacity-100" : "opacity-0",
                     )}
                   />
                   {option.label}

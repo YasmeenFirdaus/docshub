@@ -1,7 +1,7 @@
 import { Info, Clock, Lock, Tag, AlertCircle, Sparkles, X, FileSignature, CheckCircle2, User, ChevronRight } from "lucide-react"
 
 interface EditorRightRailProps {
-  activePanel: 'none' | 'review' | 'info' | 'ai'
+  activePanel: 'none' | 'review' | 'info'
   document: any
   onClose: () => void
 }
@@ -16,7 +16,6 @@ export function EditorRightRail({ activePanel, document, onClose }: EditorRightR
         <div className="flex items-center font-semibold text-slate-800">
           {activePanel === 'info' && <><Info size={16} className="mr-2 text-indigo-600" /> Document Details</>}
           {activePanel === 'review' && <><FileSignature size={16} className="mr-2 text-amber-600" /> Approval Status</>}
-          {activePanel === 'ai' && <><Sparkles size={16} className="mr-2 text-purple-600" /> AI Co-Pilot</>}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-md">
           <X size={16} />
@@ -56,26 +55,6 @@ export function EditorRightRail({ activePanel, document, onClose }: EditorRightR
               <AlertCircle size={14} className="mr-1.5 mt-0.5 shrink-0" />
               This document has been draft. Further transitions require a new revision.
             </p>
-          </div>
-        )}
-
-        {activePanel === 'ai' && (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles size={24} />
-            </div>
-            <h3 className="font-semibold text-slate-800 mb-1">How can I help?</h3>
-            <p className="text-xs text-slate-500 mb-6">Ask me to review, summarize, or improve this document.</p>
-            <div className="space-y-2 text-left">
-              <button className="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 text-sm">
-                <span className="font-medium text-slate-700">Review this document</span>
-                <ChevronRight size={14} className="text-slate-400" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 text-sm">
-                <span className="font-medium text-slate-700">Summarize this document</span>
-                <ChevronRight size={14} className="text-slate-400" />
-              </button>
-            </div>
           </div>
         )}
       </div>

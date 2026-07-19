@@ -39,11 +39,13 @@ export function DocTableRow({
   workspaces,
   members,
   onRefresh,
+  onShare,
 }: {
   doc: DocumentRowData;
   workspaces: WorkspaceNode[];
   members: Person[];
   onRefresh: () => void;
+  onShare?: (documentId: string) => void;
 }) {
   const router = useRouter();
   const [editingTitle, setEditingTitle] = React.useState(false);
@@ -163,8 +165,9 @@ export function DocTableRow({
         <DocumentStatusCell
           documentId={doc.id}
           status={doc.status}
-          onChange={async (documentId, nextStatus) => {
-            await updateDocumentStatus(documentId, nextStatus);
+          workspaceEdit={doc.workspace_edit}
+          onChange={async (documentId, nextStatus, nextWorkspaceEdit) => {
+            await updateDocumentStatus(documentId, nextStatus, nextWorkspaceEdit);
             onRefresh();
           }}
         />
@@ -202,7 +205,7 @@ export function DocTableRow({
           people={doc.contributors}
           selectablePeople={members}
           onUpdateContributors={async (documentId, userIds) => {
-            await addContributors(documentId, userIds, "VIEW");
+            await addContributors(documentId, userIds);
             onRefresh();
           }}
         />
@@ -272,6 +275,7 @@ export function DocTableRow({
           <DocumentActionMenu
             documentId={doc.id}
             onRename={() => setEditingTitle(true)}
+            onShare={onShare}
             onArchive={async (documentId: string) => {
               await archiveDocument(documentId);
               onRefresh();

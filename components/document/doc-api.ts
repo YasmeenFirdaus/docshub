@@ -26,10 +26,10 @@ export async function renameDocument(documentId: string, title: string) {
   });
 }
 
-export async function updateDocumentStatus(documentId: string, status: DocumentStatus) {
+export async function updateDocumentStatus(documentId: string, status: DocumentStatus, workspaceEdit: boolean = true) {
   return requestJson(`/api/documents/${documentId}/actions`, {
     method: "POST",
-    body: JSON.stringify({ action: "STATUS", payload: { status } }),
+    body: JSON.stringify({ action: "STATUS", payload: { status, workspace_edit: workspaceEdit } }),
   });
 }
 
@@ -61,6 +61,27 @@ export async function deleteDocument(documentId: string) {
   });
 }
 
+export async function restoreDocument(documentId: string) {
+  return requestJson(`/api/documents/${documentId}/actions`, {
+    method: "POST",
+    body: JSON.stringify({ action: "RESTORE" })
+  });
+}
+
+export async function permanentDeleteDocument(documentId: string) {
+  return requestJson(`/api/documents/${documentId}/actions`, {
+    method: "POST",
+    body: JSON.stringify({ action: "PERMANENT_DELETE" })
+  });
+}
+
+export async function duplicateDocument(documentId: string) {
+  return requestJson<{ document: { id: string } }>(`/api/documents/${documentId}/actions`, {
+    method: "POST",
+    body: JSON.stringify({ action: "DUPLICATE" })
+  });
+}
+
 export async function addReviewer(documentId: string, reviewerId: string, comment?: string) {
   const payload: Record<string, string> = { reviewer_id: reviewerId };
   if (comment?.trim()) payload.comment = comment.trim();
@@ -71,11 +92,10 @@ export async function addReviewer(documentId: string, reviewerId: string, commen
   });
 }
 
-// Note: Ensure you have a dedicated route for this, or add 'SHARE' to your unified actions switch
-export async function addContributors(documentId: string, userIds: string[], permission: "VIEW" | "EDIT" = "VIEW") {
-  return requestJson(`/api/documents/${documentId}/share`, {
+export async function addContributors(documentId: string, userIds: string[]) {
+  return requestJson(`/api/documents/${documentId}/contributors`, {
     method: "POST",
-    body: JSON.stringify({ shared_with: userIds, permission }),
+    body: JSON.stringify({ user_ids: userIds }),
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Archive, Copy, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, Copy, MoreHorizontal, RotateCcw, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ export function DocumentActionMenu({
   documentId,
   onRename,
   onDuplicate,
+  onShare,
   onArchive,
   onDelete,
   onRestore,
@@ -22,6 +23,7 @@ export function DocumentActionMenu({
   documentId: string;
   onRename: () => void;
   onDuplicate?: (documentId: string) => Promise<void> | void;
+  onShare?: (documentId: string) => void;
   onArchive: (documentId: string) => Promise<void> | void;
   onDelete: (documentId: string) => Promise<void> | void;
   onRestore?: (documentId: string) => Promise<void> | void;
@@ -38,6 +40,13 @@ export function DocumentActionMenu({
         <DropdownMenuItem onClick={onRename} className="cursor-pointer">
           Rename
         </DropdownMenuItem>
+
+        {onShare && (
+          <DropdownMenuItem onClick={() => onShare(documentId)} className="cursor-pointer">
+            <Users className="mr-2 h-4 w-4" />
+            Share
+          </DropdownMenuItem>
+        )}
 
         {onDuplicate && (
           <DropdownMenuItem onClick={() => onDuplicate(documentId)} className="cursor-pointer">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import mammoth from "mammoth"
+import { importDocxToBlocks } from "@/lib/import/fromDocx"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -22,7 +22,6 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(arrayBuffer)
     const extension = file.name.split('.').pop()?.toLowerCase()
 
-    // 1. Determine Document Type based on Prisma Enum
     let docType: 'EDITABLE' | 'PDF' | 'PPT' = 'EDITABLE'
     if (extension === 'pdf') docType = 'PDF'
     if (extension === 'ppt' || extension === 'pptx') docType = 'PPT'
@@ -33,7 +32,6 @@ export async function POST(req: Request) {
     let format = "html"
     let fileUrl = null
 
-    // 2. Process based on Type
     if (isReadOnly) {
       const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`
       const uploadDir = path.join(process.cwd(), 'public', 'uploads')
@@ -42,8 +40,9 @@ export async function POST(req: Request) {
       fileUrl = `/uploads/${fileName}`
     } else {
       if (extension === "docx") {
-        const result = await mammoth.convertToHtml({ buffer })
-        parsedContent = result.value
+        // Use normalizing pipeline: strips Word artifacts, preserves structure
+        const { normalizedHtml } = await importDocxToBlocks(buffer, (html) => html as any);
+        parsedContent = normalizedHtml
       } else if (extension === "md") {
         parsedContent = buffer.toString("utf-8")
         format = "markdown"
@@ -58,23 +57,29 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Assign Workspace
     let targetWorkspaceId = workspaceId
     if (!targetWorkspaceId || targetWorkspaceId === "undefined") {
-      const defaultWorkspace = await prisma.workspace.findFirst()
-      if (defaultWorkspace) targetWorkspaceId = defaultWorkspace.id
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { user_id: session.user.id },
+        orderBy: { joined_at: "asc" },
+        select: { workspace_id: true },
+      })
+
+      if (membership) targetWorkspaceId = membership.workspace_id
     }
 
     if (!targetWorkspaceId) {
-        return NextResponse.json({ error: "No workspace available" }, { status: 400 })
+      return NextResponse.json(
+        { error: "You are not assigned to any workspace." },
+        { status: 400 },
+      )
     }
 
-    // 4. Create Database Entry
-    // FIX: content is null for READONLY, [] for EDITABLE
     const document = await prisma.document.create({
       data: {
         title: file.name.replace(/\.[^/.]+$/, ""),
-        content: isReadOnly ? null : (parsedContent ? JSON.parse(JSON.stringify([{ type: "paragraph", content: parsedContent }])) : []),        file_url: fileUrl, 
+        content: (isReadOnly ? null : []) as any,
+        file_url: fileUrl,
         file_name: file.name,
         file_size: file.size,
         workspace_id: targetWorkspaceId,
@@ -86,7 +91,7 @@ export async function POST(req: Request) {
       }
     })
 
-    return NextResponse.json({ document })
+    return NextResponse.json({ document, htmlContent: isReadOnly ? null : parsedContent })
   } catch (error) {
     console.error("Import error:", error)
     return NextResponse.json({ error: "Failed to import document" }, { status: 500 })

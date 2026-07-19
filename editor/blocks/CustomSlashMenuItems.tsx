@@ -1,21 +1,75 @@
-import { DefaultReactSuggestionItem, getDefaultReactSlashMenuItems } from "@blocknote/react"
-import { Sparkles } from "lucide-react"
+import { BlockNoteEditor, PartialBlock, filterSuggestionItems } from "@blocknote/core";
+import { DefaultReactSuggestionItem } from "@blocknote/react";
+import { MessageSquareWarning, Code2, Video, Sparkles, PencilLine, FileText, Wand2, SpellCheck2 } from "lucide-react";
+import React from "react";
 
-const insertAIBlockItem = (editor: any): DefaultReactSuggestionItem => ({
-  title: "Ask AI",
-  onItemClick: () => {
-    const currentBlock = editor.getTextCursorPosition().block
-    editor.updateBlock(currentBlock, { type: "paragraph", content: "✨ AI is generating..." })
+// Helper to insert a block
+const insertCustomBlock = (editor: any, type: string, props = {}) => {
+  editor.insertBlocks(
+    [{ type, props } as PartialBlock],
+    editor.getTextCursorPosition().block,
+    "after"
+  );
+};
+
+export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem[] => [
+  {
+    title: "Callout",
+    subtext: "Add a highlighted callout block",
+    onItemClick: () => insertCustomBlock(editor, "callout"),
+    icon: <MessageSquareWarning size={18} />,
+    group: "Advanced",
   },
-  aliases: ["ai", "magic", "generate"],
-  group: "Advanced",
-  icon: <Sparkles size={18} className="text-indigo-600" />,
-  subtext: "Generate content with AI",
-})
+  {
+    title: "Mermaid Diagram",
+    subtext: "Render diagrams from text",
+    onItemClick: () => insertCustomBlock(editor, "mermaid"),
+    icon: <Code2 size={18} />,
+    group: "Advanced",
+  },
+  {
+    title: "Embed",
+    subtext: "YouTube, Vimeo, Figma, Loom, Spotify",
+    onItemClick: () => insertCustomBlock(editor, "embed"),
+    icon: <Video size={18} />,
+    group: "Advanced",
+  },
+];
 
-export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem[] => {
-  // Get all the standard formatting commands (Headings, Lists, etc.)
-  const defaultItems = getDefaultReactSlashMenuItems(editor)
-  // Inject our custom AI tool at the top
-  return [insertAIBlockItem(editor), ...defaultItems]
-}
+export const getAiSlashMenuItems = (editor: any, onAiAction: (action: string) => void): DefaultReactSuggestionItem[] => [
+  {
+    title: "Ask AI",
+    subtext: "Open the AI Assistant",
+    onItemClick: () => onAiAction("ask"),
+    icon: <Sparkles size={18} className="text-indigo-500" />,
+    group: "AI Actions",
+  },
+  {
+    title: "Rewrite",
+    subtext: "Rewrite the selected text",
+    onItemClick: () => onAiAction("rewrite"),
+    icon: <PencilLine size={18} className="text-indigo-500" />,
+    group: "AI Actions",
+  },
+  {
+    title: "Summarize",
+    subtext: "Summarize the document",
+    onItemClick: () => onAiAction("summarize"),
+    icon: <FileText size={18} className="text-indigo-500" />,
+    group: "AI Actions",
+  },
+  {
+    title: "Continue Writing",
+    subtext: "Let AI finish your thought",
+    onItemClick: () => onAiAction("continue"),
+    icon: <Wand2 size={18} className="text-indigo-500" />,
+    group: "AI Actions",
+  },
+  {
+    title: "Fix Grammar",
+    subtext: "Correct spelling and grammar",
+    onItemClick: () => onAiAction("grammar"),
+    icon: <SpellCheck2 size={18} className="text-indigo-500" />,
+    group: "AI Actions",
+  },
+];

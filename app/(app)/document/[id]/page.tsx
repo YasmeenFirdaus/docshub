@@ -11,7 +11,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saveStatus, setSaveStatus] = useState('Saved')
-  const [activePanel, setActivePanel] = useState<'none' | 'review' | 'info' | 'ai'>('none')
+  const [activePanel, setActivePanel] = useState<'none' | 'review' | 'info'>('none')
 
   useEffect(() => {
     const fetchDoc = async () => {
@@ -49,13 +49,20 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   return (
     <div className="flex flex-col h-screen bg-[#FAFBFC] overflow-hidden w-full">
       <EditorHeader 
+        documentId={doc.id}
         title={doc.title} 
         location={locationPath}
         saveStatus={saveStatus} 
+        visibility={doc.visibility}
+        type={doc.type}
+        workspaceId={doc.workspace_id}
         activePanel={activePanel}
         setActivePanel={setActivePanel}
+        content={doc.content}
       />
       
+      {/* Extract isPdf to determine iframe source */}
+
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto relative bg-white m-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
           
@@ -71,8 +78,8 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
                 <div className="flex-1 flex flex-col bg-slate-100 overflow-hidden rounded-xl">
                     {doc.file_url ? (
                     <iframe 
-                        src={`https://docs.google.com/viewer?url=${window.location.origin}${doc.file_url}&embedded=true`} 
-                        className="w-full h-full border-none"
+                        src={doc.type === 'PDF' || doc.file_url.toLowerCase().endsWith('.pdf') ? doc.file_url : `https://docs.google.com/viewer?url=${window.location.origin}${doc.file_url}&embedded=true`} 
+                        className="w-full h-full border-none bg-white"
                         title={doc.title}
                     />
                     ) : (

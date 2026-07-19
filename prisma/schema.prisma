@@ -27,6 +27,7 @@ model User {
   reviews          ReviewRequest[]   @relation("Reviewer")
   favorites        Favorite[]
   document_shares  DocumentShare[]
+  document_contributions DocumentContributor[]
   activity_logs    ActivityLog[]
 
   @@map("users")
@@ -143,6 +144,7 @@ model Document {
   file_size       Int?
   status          DocumentStatus    @default(DRAFT)
   visibility      Visibility        @default(WORKSPACE)
+  workspace_edit  Boolean           @default(true)
   is_approved     Boolean           @default(false)
   approved_at     DateTime?
   approved_by     String?
@@ -163,6 +165,7 @@ model Document {
   comments        Comment[]
   review_requests ReviewRequest[]
   shares          DocumentShare[]
+  contributors    DocumentContributor[]
   favorites       Favorite[]
   versions        DocumentVersion[]
 
@@ -289,6 +292,19 @@ model DocumentShare {
 enum Permission {
   VIEW
   EDIT
+}
+
+model DocumentContributor {
+  id          String   @id @default(cuid())
+  document_id String
+  user_id     String
+  created_at  DateTime @default(now())
+
+  document    Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([document_id, user_id])
+  @@map("document_contributors")
 }
 
 // ─── FAVORITES ────────────────────────────────────────────

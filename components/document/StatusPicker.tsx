@@ -10,7 +10,8 @@ export function StatusPicker({ currentStatus, documentId, onUpdate }: any) {
   const handleUpdate = async (newStatus: string) => {
     await fetch(`/api/documents/${documentId}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ action: 'STATUS_CHANGE', payload: { status: newStatus } })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'STATUS', payload: { status: newStatus } })
     })
     onUpdate()
     setOpen(false)
