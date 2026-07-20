@@ -7,10 +7,12 @@ import { Users, Mail, Shield, MoreVertical, Clock, Plus, X } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { useSidebarStore } from "@/stores/sidebar.store"
 
 export default function MembersPage() {
   const { data: session } = useSession()
   const isAdminOrOwner = session?.user?.role === 'ADMIN' || session?.user?.role === 'OWNER'
+  const { activeWorkspaceId } = useSidebarStore()
 
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("USER")
@@ -24,9 +26,13 @@ export default function MembersPage() {
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
   const [isRevoking, setIsRevoking] = useState(false)
 
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   // Fetch all members and invites
   const fetchMembers = async () => {
-    const res = await fetch('/api/members')
+    if (!activeWorkspaceId) return; // Wait until workspace is loaded
+    const res = await fetch(`/api/members?workspaceId=${activeWorkspaceId}`)
     if (res.ok) {
       const data = await res.json()
       setUsers(data.users || [])
@@ -37,7 +43,7 @@ export default function MembersPage() {
 
   useEffect(() => {
     fetchMembers()
-  }, [])
+  }, [activeWorkspaceId])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +53,7 @@ export default function MembersPage() {
     const res = await fetch('/api/members/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, role })
+      body: JSON.stringify({ email, role, workspace_id: activeWorkspaceId })
     })
 
     if (res.ok) {
@@ -71,6 +77,42 @@ export default function MembersPage() {
     } finally {
       setIsRevoking(false)
       setRevokeTargetId(null)
+    }
+  }
+
+  const handleUpdateUser = async (id: string, updates: any) => {
+    const res = await fetch(`/api/members/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    })
+    if (res.ok) fetchMembers()
+    else {
+      const err = await res.json()
+      setNotice(err.error || "Update failed")
+    }
+  }
+
+  const handleDeleteUser = (id: string) => {
+    setDeleteTargetId(id)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId || isDeleting) return
+    setIsDeleting(true)
+    try {
+      const url = activeWorkspaceId 
+        ? `/api/members/${deleteTargetId}?workspaceId=${activeWorkspaceId}` 
+        : `/api/members/${deleteTargetId}`
+      const res = await fetch(url, { method: 'DELETE' })
+      if (res.ok) fetchMembers()
+      else {
+        const err = await res.json()
+        setNotice(err.error || "Delete failed")
+      }
+    } finally {
+      setIsDeleting(false)
+      setDeleteTargetId(null)
     }
   }
 
@@ -165,18 +207,40 @@ export default function MembersPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Active
-                  </span>
+                  {isAdminOrOwner && user.id !== session?.user?.id ? (
+                    <select 
+                      value={user.status || 'ACTIVE'} 
+                      onChange={(e) => handleUpdateUser(user.id, { status: e.target.value })}
+                      className="text-xs border border-slate-200 rounded px-2 py-1 bg-white outline-none focus:border-[#256D85]"
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+                  ) : (
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${user.status === 'INACTIVE' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} border`}>
+                      {user.status === 'INACTIVE' ? 'Inactive' : 'Active'}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-slate-600 flex items-center gap-1.5">
                   {user.role === 'ADMIN' && <Shield size={14} className="text-[#256D85]" />}
-                  {user.role === 'ADMIN' ? 'Admin' : 'User'}
+                  {isAdminOrOwner && user.id !== session?.user?.id ? (
+                    <select 
+                      value={user.role} 
+                      onChange={(e) => handleUpdateUser(user.id, { role: e.target.value })}
+                      className="text-xs border border-slate-200 rounded px-2 py-1 bg-white outline-none focus:border-[#256D85]"
+                    >
+                      <option value="USER">User</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  ) : (
+                    user.role === 'ADMIN' ? 'Admin' : 'User'
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right text-slate-400">
-                  {isAdminOrOwner && (
-                    <button className="hover:text-slate-600">
-                      <MoreVertical size={16} />
+                  {isAdminOrOwner && user.id !== session?.user?.id && (
+                    <button onClick={() => handleDeleteUser(user.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">
+                      Delete
                     </button>
                   )}
                 </td>
@@ -262,6 +326,33 @@ export default function MembersPage() {
               variant="destructive"
             >
               {isRevoking ? 'Revoking...' : 'Revoke'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTargetId} onOpenChange={(isOpen) => !isOpen && setDeleteTargetId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove this member from the workspace? They will lose access to all documents here.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTargetId(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              variant="destructive"
+            >
+              {isDeleting ? 'Removing...' : 'Remove'}
             </Button>
           </div>
         </DialogContent>

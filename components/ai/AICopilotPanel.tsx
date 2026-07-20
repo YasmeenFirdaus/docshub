@@ -38,6 +38,29 @@ async function fetchDocWithContent(id: string): Promise<DocOption | null> {
   }
 }
 
+// ponytail: simple regex-based markdown parser to avoid heavy react-markdown dependency. 
+// handles bold (**text**) and basic bullet points (* or -).
+function renderFormattedText(text: string) {
+  return text.split('\n').map((line, i) => {
+    const isBullet = line.trim().match(/^[-*]\s+(.*)/);
+    const content = isBullet ? isBullet[1] : line;
+    const parts = content.split(/(\*\*.*?\*\*)/g);
+    
+    return (
+      <div key={i} className={isBullet ? 'flex gap-2' : (line.trim() === '' ? 'h-2' : '')}>
+        {isBullet && <span className="select-none text-slate-400 shrink-0">•</span>}
+        <span className={isBullet ? 'flex-1' : ''}>
+          {parts.map((part, j) => 
+            part.startsWith('**') && part.endsWith('**') 
+              ? <strong key={j} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>
+              : part
+          )}
+        </span>
+      </div>
+    );
+  });
+}
+
 export function AICopilotPanel() {
   const router = useRouter()
   const open = useAIStore((s) => s.workspaceOpen)
@@ -249,12 +272,12 @@ export function AICopilotPanel() {
                   <Sparkles className="h-3.5 w-3.5 text-white" />
                 </div>
               )}
-              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
                 m.role === 'user'
-                  ? 'arctic-primary rounded-tr-sm'
+                  ? 'arctic-primary rounded-tr-sm whitespace-pre-wrap'
                   : 'bg-slate-50 border border-slate-200 text-slate-700 rounded-tl-sm'
               }`}>
-                {m.content}
+                {m.role === 'assistant' ? renderFormattedText(m.content) : m.content}
               </div>
             </div>
           ))}
