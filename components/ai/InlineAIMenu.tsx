@@ -66,7 +66,7 @@ export function InlineAIMenu({ selection, onClose }: Props) {
     >
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-          <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+          <Sparkles className="h-3.5 w-3.5 text-[#256D85]" />
           Ask AI
         </div>
         <button
@@ -102,7 +102,7 @@ export function InlineAIMenu({ selection, onClose }: Props) {
             <button
               type="button"
               onClick={apply}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#256D85] px-3 py-2 text-xs font-medium text-white hover:bg-[#1f5c70]"
             >
               <Check className="h-3.5 w-3.5" />
               Apply

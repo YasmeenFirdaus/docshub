@@ -82,8 +82,8 @@ export async function duplicateDocument(documentId: string) {
   });
 }
 
-export async function addReviewer(documentId: string, reviewerId: string, comment?: string) {
-  const payload: Record<string, string> = { reviewer_id: reviewerId };
+export async function addReviewers(documentId: string, reviewerIds: string[], comment?: string) {
+  const payload: any = { reviewerIds };
   if (comment?.trim()) payload.comment = comment.trim();
 
   return requestJson(`/api/documents/${documentId}/actions`, {

@@ -1,8 +1,12 @@
 'use client'
 
+'use client'
+
 import { useState, useEffect } from "react"
-import { Users, Mail, Shield, MoreVertical, Clock } from "lucide-react"
+import { Users, Mail, Shield, MoreVertical, Clock, Plus, X } from "lucide-react"
 import { useSession } from "next-auth/react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 export default function MembersPage() {
   const { data: session } = useSession()
@@ -10,10 +14,15 @@ export default function MembersPage() {
 
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("USER")
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [notice, setNotice] = useState("")
   
   const [users, setUsers] = useState<any[]>([])
   const [invitations, setInvitations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null)
+  const [isRevoking, setIsRevoking] = useState(false)
 
   // Fetch all members and invites
   const fetchMembers = async () => {
@@ -42,72 +51,63 @@ export default function MembersPage() {
     })
 
     if (res.ok) {
-      alert(`Success! Invitation sent to ${email}`)
+      setNotice(`Invitation sent to ${email}`)
       setEmail("")
+      setInviteOpen(false)
       // Refresh the table to show the new pending invite
       fetchMembers()
     } else {
       const errorData = await res.json()
-      alert(`Error: ${errorData.error}`)
+      setNotice(errorData.error || "Invitation failed")
+    }
+  }
+
+  const confirmRevoke = async () => {
+    if (!revokeTargetId || isRevoking) return
+    setIsRevoking(true)
+    try {
+      const res = await fetch(`/api/members/invite/${revokeTargetId}`, { method: 'DELETE' })
+      if (res.ok) fetchMembers() // Refresh table to remove the deleted invite
+    } finally {
+      setIsRevoking(false)
+      setRevokeTargetId(null)
     }
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-800">Organization Members</h1>
-        <p className="text-slate-500 mt-1">Manage team access, roles, and pending invitations.</p>
+    <div className="mx-auto max-w-6xl p-5 lg:p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1E293B]">Organization Members</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage team access, roles, and pending invitations.</p>
+        </div>
+        {isAdminOrOwner && (
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            className="arctic-primary flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition hover:-translate-y-px"
+          >
+            <Plus size={16} />
+            Invite Member
+          </button>
+        )}
       </div>
 
-      {/* Invite Section */}
-      {isAdminOrOwner && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 mb-8 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center">
-            <Mail size={16} className="mr-2 text-slate-400" />
-            Invite new member
-          </h2>
-          <form onSubmit={handleInvite} className="flex gap-4 items-end">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Email address</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@company.com" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-          <div className="w-48">
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Role</label>
-            <select 
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option value="USER">User</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-          <button 
-            type="submit"
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Send Invite
-          </button>
-        </form>
+      {notice && (
+        <div className="mb-5 rounded-xl border border-[#78C6C9]/30 bg-[#78C6C9]/12 px-4 py-3 text-sm font-medium text-[#256D85]">
+          {notice}
         </div>
       )}
 
       {/* Members & Invites List */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="premium-card overflow-hidden rounded-2xl">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
+          <thead className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
             <tr>
-              <th className="px-6 py-3">User</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Role</th>
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="px-6 py-3.5">User</th>
+              <th className="px-6 py-3.5">Status</th>
+              <th className="px-6 py-3.5">Role</th>
+              <th className="px-6 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -120,7 +120,7 @@ export default function MembersPage() {
 
             {/* Render Pending Invitations */}
             {!loading && invitations.map((invite) => (
-              <tr key={invite.id} className="hover:bg-slate-50 transition-colors bg-slate-50/50">
+              <tr key={invite.id} className="bg-slate-50/40 transition-colors hover:bg-[#78C6C9]/10">
                 <td className="px-6 py-4 flex items-center gap-3">
                   <div className="w-8 h-8 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center font-bold">
                     <Mail size={14} />
@@ -136,18 +136,13 @@ export default function MembersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-slate-600 flex items-center gap-1.5">
-                  {invite.role === 'ADMIN' && <Shield size={14} className="text-indigo-500" />}
+                  {invite.role === 'ADMIN' && <Shield size={14} className="text-[#256D85]" />}
                   {invite.role === 'ADMIN' ? 'Admin' : 'User'}
                 </td>
                 <td className="px-6 py-4 text-right text-slate-400">
                   {isAdminOrOwner && (
                     <button 
-                      onClick={async () => {
-                          if (window.confirm("Are you sure you want to revoke this invitation?")) {
-                          const res = await fetch(`/api/members/invite/${invite.id}`, { method: 'DELETE' })
-                          if (res.ok) fetchMembers() // Refresh table to remove the deleted invite
-                          }
-                      }} 
+                      onClick={() => setRevokeTargetId(invite.id)} 
                       className="text-xs text-red-500 hover:text-red-700 font-medium"
                       >
                       Revoke
@@ -159,9 +154,9 @@ export default function MembersPage() {
 
             {/* Render Active Users */}
             {!loading && users.map((user) => (
-              <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+              <tr key={user.id} className="transition-colors hover:bg-[#78C6C9]/10">
                 <td className="px-6 py-4 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 bg-[#78C6C9]/18 text-[#256D85] rounded-full flex items-center justify-center font-bold">
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div>
@@ -175,7 +170,7 @@ export default function MembersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-slate-600 flex items-center gap-1.5">
-                  {user.role === 'ADMIN' && <Shield size={14} className="text-indigo-500" />}
+                  {user.role === 'ADMIN' && <Shield size={14} className="text-[#256D85]" />}
                   {user.role === 'ADMIN' ? 'Admin' : 'User'}
                 </td>
                 <td className="px-6 py-4 text-right text-slate-400">
@@ -196,6 +191,81 @@ export default function MembersPage() {
           </tbody>
         </table>
       </div>
+
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1E293B]/24 p-4 backdrop-blur-sm">
+          <div className="premium-card w-full max-w-md rounded-2xl animate-doc-fade-up">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-[#1E293B]">Invite new member</h2>
+                <p className="mt-1 text-sm text-slate-500">Send an email invitation with the selected role.</p>
+              </div>
+              <button onClick={() => setInviteOpen(false)} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleInvite} className="space-y-4 p-6">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="colleague@company.com"
+                  className="premium-control h-10 w-full rounded-lg px-3 text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="premium-control h-10 w-full rounded-lg px-3 text-sm"
+                >
+                  <option value="USER">User</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setInviteOpen(false)} className="premium-control h-10 rounded-lg px-4 text-sm font-semibold text-slate-700">
+                  Cancel
+                </button>
+                <button type="submit" className="arctic-primary h-10 rounded-lg px-4 text-sm font-semibold transition">
+                  Send Invite
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={!!revokeTargetId} onOpenChange={(isOpen) => !isOpen && setRevokeTargetId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke Invitation</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revoke this invitation? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setRevokeTargetId(null)}
+              disabled={isRevoking}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmRevoke}
+              disabled={isRevoking}
+              variant="destructive"
+            >
+              {isRevoking ? 'Revoking...' : 'Revoke'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

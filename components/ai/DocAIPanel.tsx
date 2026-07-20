@@ -76,12 +76,17 @@ export function DocAIPanel() {
     const displayMsg = text || activeAction
     setMessages((prev) => [...prev, { role: 'user', content: displayMsg }])
     setPrompt('')
+    const currentCompareDoc = compareDoc
+    const currentAction = activeAction
+
+    setCompareDoc(null)
+    setActiveAction('ask')
     setLoading(true)
 
     try {
       let answer = ''
 
-      if (activeAction === 'summarize') {
+      if (currentAction === 'summarize') {
         const res = await fetch('/api/ai/document/summarize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -90,7 +95,7 @@ export function DocAIPanel() {
         const data = await res.json()
         answer = data.summary ?? data.answer ?? JSON.stringify(data)
 
-      } else if (activeAction === 'suggest-tags') {
+      } else if (currentAction === 'suggest-tags') {
         const res = await fetch('/api/ai/document/suggest-tags', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -101,7 +106,7 @@ export function DocAIPanel() {
         setTags(tagList)
         answer = tagList.length ? `Suggested ${tagList.length} tags` : 'No tags suggested.'
 
-      } else if (activeAction === 'suggest-edits') {
+      } else if (currentAction === 'suggest-edits') {
         const res = await fetch('/api/ai/document/suggest-edits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -110,7 +115,7 @@ export function DocAIPanel() {
         const data = await res.json()
         answer = data.answer ?? JSON.stringify(data)
 
-      } else if (activeAction === 'compare' && compareDoc) {
+      } else if (currentAction === 'compare' && currentCompareDoc) {
         const res = await fetch('/api/ai/document/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -119,7 +124,7 @@ export function DocAIPanel() {
             title: doc.title,
             content: doc.content,
             query: text || 'Compare these two documents and highlight key differences.',
-            compareDoc: { title: compareDoc.title, content: compareDoc.content },
+            compareDoc: { title: currentCompareDoc.title, content: currentCompareDoc.content },
           }),
         })
         const data = await res.json()
@@ -158,15 +163,15 @@ export function DocAIPanel() {
   return (
     <div className="fixed inset-0 z-[70]">
       <button type="button" onClick={close}
-        className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-[#1E293B]/16 backdrop-blur-[1px]"
         aria-label="Close document AI panel" />
 
-      <aside className="absolute right-0 top-0 h-full w-full max-w-[480px] border-l border-slate-200 bg-white shadow-2xl flex flex-col">
+      <aside className="arctic-glass absolute right-0 top-0 h-full w-full max-w-[480px] border-l border-[#E7ECEA]/80 shadow-2xl flex flex-col animate-doc-slide-in">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+            <div className="arctic-primary w-7 h-7 rounded-lg flex items-center justify-center shrink-0">
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <div className="min-w-0">
@@ -183,7 +188,7 @@ export function DocAIPanel() {
         {/* Current doc chip */}
         <div className="px-5 py-3 border-b border-slate-100 shrink-0">
           <p className="text-xs text-slate-400 mb-2 uppercase tracking-wider font-medium">Active document</p>
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs text-indigo-700 max-w-full">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-[#78C6C9]/12 border border-[#78C6C9]/45 px-3 py-1 text-xs text-[#256D85] max-w-full">
             <FileText className="h-3 w-3 shrink-0" />
             <span className="truncate">{doc.title}</span>
           </div>
@@ -193,8 +198,8 @@ export function DocAIPanel() {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
-                <Sparkles className="h-6 w-6 text-indigo-500" />
+              <div className="w-12 h-12 rounded-2xl bg-[#78C6C9]/12 flex items-center justify-center mb-3">
+                <Sparkles className="h-6 w-6 text-[#256D85]" />
               </div>
               <p className="text-sm font-medium text-slate-700 mb-1">Ask about this document</p>
               <p className="text-xs text-slate-400 max-w-[220px]">
@@ -206,13 +211,13 @@ export function DocAIPanel() {
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'assistant' && (
-                <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5 mr-2">
+                <div className="arctic-primary w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 mr-2">
                   <Sparkles className="h-3.5 w-3.5 text-white" />
                 </div>
               )}
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
                 m.role === 'user'
-                  ? 'bg-indigo-600 text-white rounded-tr-sm'
+                  ? 'arctic-primary rounded-tr-sm'
                   : 'bg-slate-50 border border-slate-200 text-slate-700 rounded-tl-sm'
               }`}>
                 {m.content}
@@ -236,11 +241,11 @@ export function DocAIPanel() {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center shrink-0 mt-0.5 mr-2">
+              <div className="arctic-primary w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 mr-2">
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3">
-                <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm px-3.5 py-2">
+                <Loader2 className="h-4 w-4 text-[#256D85] animate-spin" />
               </div>
             </div>
           )}
@@ -248,7 +253,7 @@ export function DocAIPanel() {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-slate-100 p-4 shrink-0">
+        <div className="border-t border-slate-100 px-4 py-3 shrink-0">
 
           {/* Compare doc chip */}
           {(compareDoc || fetchingCompare) && (
@@ -279,7 +284,7 @@ export function DocAIPanel() {
               excludeIds={[doc.id]}
             />
 
-            <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-indigo-400 focus-within:bg-white transition">
+            <div className="premium-control flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5">
               <textarea
                 ref={textareaRef}
                 value={prompt}
@@ -292,7 +297,7 @@ export function DocAIPanel() {
                 }
                 rows={1}
                 className="flex-1 text-sm outline-none bg-transparent resize-none placeholder:text-slate-400 max-h-32 leading-5"
-                style={{ height: 'auto', minHeight: '24px' }}
+                style={{ height: 'auto', minHeight: '20px' }}
                 onInput={(e) => {
                   const t = e.currentTarget
                   t.style.height = 'auto'
@@ -300,7 +305,7 @@ export function DocAIPanel() {
                 }}
               />
               <button type="button" onClick={send} disabled={!canSend}
-                className="shrink-0 flex items-center justify-center w-8 h-8 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                className="arctic-primary shrink-0 flex items-center justify-center w-7 h-7 rounded-[10px] disabled:opacity-40 disabled:cursor-not-allowed transition">
                 <Send className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -313,8 +318,8 @@ export function DocAIPanel() {
                 onClick={() => handleActionChip(a)}
                 className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition ${
                   activeAction === a.id
-                    ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'
+                    ? 'border-[#78C6C9] bg-[#78C6C9]/12 text-[#256D85]'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-[#78C6C9]/14 hover:border-[#78C6C9]/45 hover:text-[#256D85]'
                 }`}>
                 {a.icon} {a.label}
               </button>

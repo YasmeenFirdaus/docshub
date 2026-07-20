@@ -31,11 +31,11 @@ const Popover = ({
         if (React.isValidElement(child) && child.type === PopoverContent) {
           return isOpen
             ? React.cloneElement(child as React.ReactElement<any>, {
-                onClose: () => {
-                  setIsOpen(false)
-                  onOpenChange?.(false)
-                },
-              })
+              onClose: () => {
+                setIsOpen(false)
+                onOpenChange?.(false)
+              },
+            })
             : null
         }
         return child
@@ -61,7 +61,7 @@ const PopoverContent = React.forwardRef<
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (contentRef.current && !contentRef.current.contains(event.target as Node)) {
-        ;(props as any).onClose?.()
+        ; (props as any).onClose?.()
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -73,10 +73,10 @@ const PopoverContent = React.forwardRef<
       ref={(node) => {
         if (typeof ref === "function") ref(node)
         else if (ref) ref.current = node
-        ;(contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+          ; (contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
       }}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white text-slate-900 shadow-md animate-in fade-in-0 zoom-in-95",
+        "premium-card absolute top-full mt-2 z-50 min-w-[10rem] overflow-hidden rounded-xl text-slate-900 animate-doc-fade-up",
         align === "start" && "left-0",
         align === "end" && "right-0",
         className,

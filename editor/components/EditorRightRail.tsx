@@ -14,7 +14,7 @@ export function EditorRightRail({ activePanel, document, onClose }: EditorRightR
       {/* Panel Header */}
       <div className="h-14 border-b border-slate-100 flex items-center justify-between px-5">
         <div className="flex items-center font-semibold text-slate-800">
-          {activePanel === 'info' && <><Info size={16} className="mr-2 text-indigo-600" /> Document Details</>}
+          {activePanel === 'info' && <><Info size={16} className="mr-2 text-[#256D85]" /> Document Details</>}
           {activePanel === 'review' && <><FileSignature size={16} className="mr-2 text-amber-600" /> Approval Status</>}
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-md">

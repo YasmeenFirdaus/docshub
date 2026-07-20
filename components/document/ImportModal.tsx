@@ -81,8 +81,8 @@ export function ImportModal({ onClose, onSuccess, workspaceId, folderId }: Props
   const isEditable = EDITABLE_TYPES.includes(ext)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1E293B]/24 backdrop-blur-sm">
+      <div className="premium-card w-full max-w-md mx-4 rounded-2xl animate-doc-fade-up">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-800">Import Document</h2>
@@ -94,8 +94,8 @@ export function ImportModal({ onClose, onSuccess, workspaceId, folderId }: Props
         <div className="p-6 space-y-4">
           {/* Drop zone */}
           <div
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-              dragOver ? 'border-indigo-400 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+            className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+              dragOver ? 'border-[#78C6C9] bg-[#78C6C9]/12' : 'border-slate-200 hover:border-[#78C6C9] hover:bg-[#F5F7F6]'
             }`}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
@@ -111,8 +111,8 @@ export function ImportModal({ onClose, onSuccess, workspaceId, folderId }: Props
             />
             {file ? (
               <div className="space-y-2">
-                <div className="w-12 h-12 bg-indigo-50 rounded-xl mx-auto flex items-center justify-center">
-                  {isReadOnly ? <File className="w-6 h-6 text-slate-400" /> : <FileText className="w-6 h-6 text-indigo-500" />}
+                <div className="w-12 h-12 bg-[#78C6C9]/12 rounded-xl mx-auto flex items-center justify-center">
+                  {isReadOnly ? <File className="w-6 h-6 text-slate-400" /> : <FileText className="w-6 h-6 text-[#256D85]" />}
                 </div>
                 <p className="font-medium text-slate-800 text-sm">{file.name}</p>
                 <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} KB</p>
@@ -169,14 +169,14 @@ export function ImportModal({ onClose, onSuccess, workspaceId, folderId }: Props
           <div className="flex gap-3 pt-1">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 text-sm border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition font-medium"
+            className="premium-control h-10 flex-1 rounded-xl text-sm font-semibold text-slate-600"
             >
               Cancel
             </button>
             <button
               onClick={uploadFile}
               disabled={!file || uploading}
-              className="flex-1 py-2.5 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition font-medium flex items-center justify-center gap-2"
+            className="arctic-primary flex h-10 flex-1 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:opacity-50"
             >
               {uploading ? (
                 <>

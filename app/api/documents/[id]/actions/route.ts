@@ -5,6 +5,7 @@ import { ActivityType, DocumentStatus, Role, ReviewStatus } from "@prisma/client
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateSearchVector } from "@/lib/search";
+import { sendReviewerNotification } from "@/lib/email";
 
 type DocumentAction =
   | "MOVE"
@@ -329,9 +330,9 @@ export async function POST(
           const targetFolder =
             incomingFolderId
               ? await tx.folder.findUnique({
-                  where: { id: incomingFolderId },
-                  select: { id: true, workspace_id: true },
-                })
+                where: { id: incomingFolderId },
+                select: { id: true, workspace_id: true },
+              })
               : null;
 
           if (incomingFolderId && !targetFolder) {
@@ -623,61 +624,78 @@ export async function POST(
         }
 
         case "REQUEST_REVIEW": {
-          const reviewerId = asString(payload.reviewerId ?? payload.reviewer_id);
+          const rawIds = Array.isArray(payload.reviewerIds)
+            ? payload.reviewerIds
+            : asString(payload.reviewerId ?? payload.reviewer_id)
+              ? [asString(payload.reviewerId ?? payload.reviewer_id)!]
+              : [];
+
+          const reviewerIds = Array.from(new Set(rawIds.filter(id => typeof id === 'string' && id.trim().length > 0)));
           const comment = asNullableString(payload.comment);
 
-          if (!reviewerId) {
-            throw new Error("Missing reviewerId");
+          if (reviewerIds.length === 0) {
+            await tx.reviewRequest.deleteMany({
+              where: { document_id: documentId }
+            });
+          } else {
+            await tx.reviewRequest.deleteMany({
+              where: { 
+                document_id: documentId,
+                reviewer_id: { notIn: reviewerIds }
+              }
+            });
           }
 
-          const existingPending = await tx.reviewRequest.findFirst({
-            where: {
-              document_id: documentId,
-              reviewer_id: reviewerId,
-              status: ReviewStatus.PENDING,
-            },
-            select: { id: true },
-          });
-
-          if (existingPending) {
-            return {
-              reviewRequest: existingPending,
-              duplicate: true,
-            };
-          }
-
-          const reviewRequest = await tx.reviewRequest.create({
-            data: {
-              document_id: documentId,
-              requested_by: identity.userId,
-              reviewer_id: reviewerId,
-              status: ReviewStatus.PENDING,
-              comment: comment ?? undefined,
-            },
-            select: {
-              id: true,
-              document_id: true,
-              requested_by: true,
-              reviewer_id: true,
-              status: true,
-              created_at: true,
-            },
-          });
-
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.REVIEW_REQUESTED,
-              entity: "document",
-              entity_id: documentId,
-              meta: {
-                action: "REQUEST_REVIEW",
-                reviewer_id: reviewerId,
+          const createdRequests = [];
+          for (const revId of reviewerIds) {
+            const existingPending = await tx.reviewRequest.findFirst({
+              where: {
+                document_id: documentId,
+                reviewer_id: revId,
               },
-            },
-          });
+              select: { id: true },
+            });
 
-          return { reviewRequest };
+            if (existingPending) {
+              createdRequests.push({ request: existingPending, duplicate: true });
+              continue;
+            }
+
+            const reviewRequest = await tx.reviewRequest.create({
+              data: {
+                document_id: documentId,
+                requested_by: identity.userId,
+                reviewer_id: revId,
+                status: ReviewStatus.PENDING,
+                comment: comment ?? undefined,
+              },
+              select: {
+                id: true,
+                document_id: true,
+                requested_by: true,
+                reviewer_id: true,
+                status: true,
+                created_at: true,
+              },
+            });
+
+            await tx.activityLog.create({
+              data: {
+                user_id: identity.userId,
+                action: ActivityType.REVIEW_REQUESTED,
+                entity: "document",
+                entity_id: documentId,
+                meta: {
+                  action: "REQUEST_REVIEW",
+                  reviewer_id: revId,
+                },
+              },
+            });
+
+            createdRequests.push({ request: reviewRequest, duplicate: false });
+          }
+
+          return { reviewRequests: createdRequests };
         }
 
         case "UPDATE_REVIEW_STATUS": {
@@ -687,7 +705,7 @@ export async function POST(
           if (!allowedStatuses.includes(statusRaw as ReviewStatus)) {
             throw new Error("Invalid review status");
           }
-          
+
           const reviewerScopedRequest = await tx.reviewRequest.findFirst({
             where: {
               document_id: documentId,
@@ -700,7 +718,7 @@ export async function POST(
             where: { document_id: documentId },
             orderBy: { created_at: 'desc' }
           });
-          
+
           if (!reviewRequest) {
             const created = await tx.reviewRequest.create({
               data: {
@@ -714,7 +732,7 @@ export async function POST(
 
             return { reviewRequest: created };
           }
-          
+
           const updated = await tx.reviewRequest.update({
             where: { id: reviewRequest.id },
             data: {
@@ -722,7 +740,7 @@ export async function POST(
               reviewed_at: statusRaw === ReviewStatus.PENDING ? null : new Date(),
             }
           });
-          
+
           await tx.activityLog.create({
             data: {
               user_id: identity.userId,
@@ -735,7 +753,7 @@ export async function POST(
               },
             },
           });
-          
+
           return { reviewRequest: updated };
         }
 
@@ -756,6 +774,35 @@ export async function POST(
       }
     }
 
+    // Fire-and-forget reviewer notification (outside transaction)
+    if (action === "REQUEST_REVIEW" && "reviewRequests" in result) {
+      const newReviewers = (result as any).reviewRequests
+        .filter((r: any) => !r.duplicate)
+        .map((r: any) => r.request.reviewer_id as string)
+
+      if (newReviewers.length > 0) {
+        Promise.all([
+          prisma.user.findUnique({ where: { id: identity.userId }, select: { name: true, email: true } }),
+          prisma.document.findUnique({ where: { id: documentId }, select: { title: true } }),
+          prisma.user.findMany({ where: { id: { in: newReviewers } }, select: { email: true } }),
+        ]).then(([requester, doc, reviewers]) => {
+          if (!requester || !doc || reviewers.length === 0) return
+          const requestedByName = requester.name || requester.email || 'Someone'
+
+          Promise.allSettled(
+            reviewers.map(reviewer =>
+              sendReviewerNotification({
+                to: reviewer.email,
+                docTitle: doc.title,
+                docId: documentId,
+                requestedByName,
+              })
+            )
+          ).catch(() => { })
+        }).catch(() => { })
+      }
+    }
+
     return NextResponse.json({ ok: true, action, ...result });
   } catch (error) {
     const message =
@@ -763,9 +810,9 @@ export async function POST(
 
     const status =
       message === "Missing title" ||
-      message === "Invalid status" ||
-      message === "Missing reviewerId" ||
-      message === "Unsupported action"
+        message === "Invalid status" ||
+        message === "Missing reviewerId" ||
+        message === "Unsupported action"
         ? 400
         : message === "Folder not found" || message === "Folder does not belong to destination workspace"
           ? 400

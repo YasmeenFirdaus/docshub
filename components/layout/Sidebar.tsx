@@ -9,9 +9,9 @@ import {
   Star,
   Clock,
   Trash2,
-  Plus,
   ChevronRight,
   ChevronDown,
+  Library,
   Folder,
   Settings,
   MoreHorizontal,
@@ -19,16 +19,15 @@ import {
   Trash,
   FolderPlus,
   LogOut,
+  SidebarClose,
+  SidebarOpen,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useSidebarStore } from "@/stores/sidebar.store";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
 
 type TenantNode = {
   id: string;
@@ -62,8 +61,29 @@ export function Sidebar() {
 
   const [tenant, setTenant] = useState<TenantNode | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceNode[]>([]);
-  const [spaceMenuOpen, setSpaceMenuOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const [dialogConfig, setDialogConfig] = useState<{
+    isOpen: boolean;
+    type: 'addFolder' | 'renameFolder' | 'deleteFolder' | null;
+    folderId?: string;
+    workspaceId?: string;
+    parentId?: string | null;
+    title: string;
+    description: string;
+    inputValue: string;
+    inputPlaceholder?: string;
+    confirmLabel: string;
+  }>({
+    isOpen: false,
+    type: null,
+    title: '',
+    description: '',
+    inputValue: '',
+    confirmLabel: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchWorkspaces = async () => {
     const res = await fetch("/api/workspaces");
@@ -112,52 +132,81 @@ export function Sidebar() {
     { name: "Trash", icon: Trash2, href: "/trash" },
   ];
 
-  const handleAddFolder = async (
-    workspaceId: string,
-    parentId: string | null = null,
-  ) => {
+  const handleAddFolder = async (workspaceId: string, parentId: string | null = null) => {
     setActiveMenu(null);
-    const name = window.prompt("Enter new folder name:");
-    if (!name) return;
-
-    await fetch("/api/folders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, workspace_id: workspaceId, parent_id: parentId }),
+    setDialogConfig({
+      isOpen: true,
+      type: 'addFolder',
+      workspaceId,
+      parentId,
+      title: 'Create Folder',
+      description: 'Enter a name for the new folder.',
+      inputValue: '',
+      inputPlaceholder: 'New folder name',
+      confirmLabel: 'Create'
     });
-
-    await fetchWorkspaces();
-
-    if (parentId && !expandedFolders.has(parentId)) {
-      toggleFolder(parentId);
-    }
   };
 
   const handleRenameFolder = async (folderId: string, currentName: string) => {
     setActiveMenu(null);
-    const newName = window.prompt("Enter new folder name:", currentName);
-    if (!newName || newName === currentName) return;
-
-    await fetch(`/api/folders/${folderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName }),
+    setDialogConfig({
+      isOpen: true,
+      type: 'renameFolder',
+      folderId,
+      title: 'Rename Folder',
+      description: 'Enter a new name for the folder.',
+      inputValue: currentName,
+      inputPlaceholder: 'Folder name',
+      confirmLabel: 'Rename'
     });
-
-    await fetchWorkspaces();
   };
 
   const handleDeleteFolder = async (folderId: string) => {
     setActiveMenu(null);
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this folder? All nested items will be lost.",
-      )
-    )
-      return;
+    setDialogConfig({
+      isOpen: true,
+      type: 'deleteFolder',
+      folderId,
+      title: 'Delete Folder',
+      description: 'Are you sure you want to delete this folder? All nested items will be lost.',
+      inputValue: '',
+      confirmLabel: 'Delete'
+    });
+  };
 
-    await fetch(`/api/folders/${folderId}`, { method: "DELETE" });
-    await fetchWorkspaces();
+  const handleDialogConfirm = async () => {
+    if (isSubmitting) return;
+    const { type, folderId, workspaceId, parentId, inputValue } = dialogConfig;
+
+    if (type !== 'deleteFolder' && !inputValue.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (type === 'addFolder') {
+        await fetch("/api/folders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: inputValue.trim(), workspace_id: workspaceId, parent_id: parentId }),
+        });
+        await fetchWorkspaces();
+        if (parentId && !expandedFolders.has(parentId)) {
+          toggleFolder(parentId);
+        }
+      } else if (type === 'renameFolder') {
+        await fetch(`/api/folders/${folderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: inputValue.trim() }),
+        });
+        await fetchWorkspaces();
+      } else if (type === 'deleteFolder') {
+        await fetch(`/api/folders/${folderId}`, { method: "DELETE" });
+        await fetchWorkspaces();
+      }
+    } finally {
+      setIsSubmitting(false);
+      setDialogConfig((prev) => ({ ...prev, isOpen: false }));
+    }
   };
 
   const renderFolderTree = (
@@ -177,12 +226,12 @@ export function Sidebar() {
       return (
         <div key={folder.id} className="relative">
           <div
-            className="group relative flex cursor-pointer items-center rounded-md py-1.5 pr-2 text-slate-600 hover:bg-slate-100"
-            style={{ paddingLeft: `${depth * 16 + 24}px` }}
+            className="group relative flex cursor-pointer items-center rounded-lg py-1.5 pr-2 text-[#256D85] transition-all hover:bg-[#FAFAF9]/80 hover:text-[#256D85] hover:shadow-sm"
+            style={{ paddingLeft: `${depth * 10 + 10}px` }}
           >
             <button
               type="button"
-              className="mr-1 flex h-4 w-4 items-center justify-center text-slate-400 hover:text-slate-600"
+              className="mr-1 flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasChildren) toggleFolder(folder.id);
@@ -202,8 +251,8 @@ export function Sidebar() {
               className="flex min-w-0 flex-1 items-center text-left"
               onClick={() => router.push(`/workspace/${workspaceId}/folder/${folder.id}`)}
             >
-              <Folder size={16} className="mr-2 shrink-0 text-slate-400" />
-              <span className="flex-1 truncate text-sm">{folder.name}</span>
+              <Folder size={15} className="mr-2 shrink-0 text-slate-400" />
+              <span className="flex-1 truncate text-[13px] font-medium">{folder.name}</span>
             </button>
 
             <button
@@ -212,13 +261,13 @@ export function Sidebar() {
                 e.stopPropagation();
                 setActiveMenu(activeMenu === folder.id ? null : folder.id);
               }}
-              className="rounded p-1 text-slate-400 opacity-0 transition-opacity hover:text-slate-700 group-hover:opacity-100"
+              className="rounded-md p-1 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
             >
               <MoreHorizontal size={14} />
             </button>
 
             {activeMenu === folder.id && (
-              <div className="absolute right-2 top-8 z-50 w-40 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+              <div className="premium-card absolute right-2 top-8 z-50 w-44 rounded-xl py-1 animate-doc-fade-up">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -254,7 +303,7 @@ export function Sidebar() {
           </div>
 
           {isExpanded && hasChildren && (
-            <div>{renderFolderTree(folders, workspaceId, folder.id, depth + 1)}</div>
+            <div className="animate-doc-fade-up">{renderFolderTree(folders, workspaceId, folder.id, depth + 1)}</div>
           )}
         </div>
       );
@@ -263,22 +312,44 @@ export function Sidebar() {
 
   return (
     <div
-      className="flex h-full w-[280px] flex-col border-r border-slate-200 bg-[#FAFBFC]"
+      className={`arctic-glass flex h-full flex-col border-r border-[#E7ECEA]/80 transition-all duration-300 ${
+        isCollapsed ? "w-[72px]" : "w-[284px]"
+      }`}
       onClick={() => {
         setActiveMenu(null);
-        setSpaceMenuOpen(false);
       }}
     >
-      <div className="mb-4 flex h-14 items-center px-4">
-        <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 font-bold text-white">
-          <Layers size={18} />
-        </div>
-        <span className="font-semibold tracking-tight text-slate-800">
-          {tenant?.name || "Enterprise DMS"}
-        </span>
+      <div className={`mb-2 flex h-16 items-center px-4 ${!isCollapsed ? "justify-between" : "justify-center"}`}>
+        {!isCollapsed ? (
+          <>
+            <div className="flex items-center">
+              <div className="arctic-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold">
+                <Library size={16} />
+              </div>
+              <span className="ml-3 truncate font-semibold tracking-tight text-[#1E293B]">
+                {tenant?.name || "Enterprise DMS"}
+              </span>
+            </div>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="text-slate-400 hover:text-[#256D85] transition-colors"
+            >
+              <SidebarClose size={18} />
+            </button>
+          </>
+        ) : (
+          <div className="group cursor-pointer flex items-center justify-center" onClick={() => setIsCollapsed(false)}>
+            <div className="arctic-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold transition-all group-hover:hidden">
+              <Library size={16} />
+            </div>
+            <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold text-slate-500 hover:text-[#256D85] transition-all group-hover:flex">
+              <SidebarOpen size={18} />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 space-y-1">
+      <div className={`flex-1 space-y-1 overflow-y-auto pb-3 ${isCollapsed ? "px-2" : "px-3"}`}>
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -287,77 +358,34 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              title={isCollapsed ? item.name : undefined}
+              className={`flex items-center rounded-lg py-2 transition-all ${
+                isCollapsed ? "justify-center px-0" : "px-3"
+              } ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  ? "arctic-primary"
+                  : "text-[#256D85] hover:bg-[#FAFAF9]/80 hover:text-[#256D85] hover:shadow-sm"
               }`}
             >
-              <Icon size={18} className={`mr-3 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
-              {item.name}
+              <Icon size={17} className={`${isCollapsed ? "" : "mr-3"} ${isActive ? "text-white" : "text-[#256D85]/75"}`} />
+              {!isCollapsed && <span className="text-sm font-medium">{item.name}</span>}
             </Link>
           );
         })}
 
-        <div className="pb-2 pt-6">
+        {!isCollapsed && (
           <div className="px-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Current Space
-            </span>
-
-            <div className="relative mt-2">
-              <button
-                type="button"
-                onClick={() => setSpaceMenuOpen((v) => !v)}
-                className="flex w-full items-center rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-              >
-                <div className="mr-2 flex h-5 w-5 items-center justify-center rounded bg-indigo-100 text-xs font-bold text-indigo-700">
-                  {activeWorkspace?.icon || activeWorkspace?.name?.charAt(0) || "S"}
-                </div>
-                <span className="min-w-0 flex-1 truncate">
-                  {activeWorkspace?.name || "No space assigned"}
-                </span>
-                <ChevronDown size={14} className="ml-2 shrink-0 text-slate-400" />
-              </button>
-
-              {spaceMenuOpen && workspaces.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                  {workspaces.map((workspace) => (
-                    <button
-                      key={workspace.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveWorkspace(workspace.id);
-                        setSpaceMenuOpen(false);
-                        router.push(`/workspace/${workspace.id}`);
-                      }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                        activeWorkspaceId === workspace.id
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      <div className="mr-2 flex h-5 w-5 items-center justify-center rounded bg-indigo-100 text-xs font-bold text-indigo-700">
-                        {workspace.icon || workspace.name.charAt(0)}
-                      </div>
-                      <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Folders
+            <div className="mb-2 flex items-center justify-between group px-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                {activeWorkspace?.name || "Folders"}
               </span>
               <button
                 type="button"
                 onClick={() => activeWorkspace && handleAddFolder(activeWorkspace.id, null)}
-                className="rounded p-1 text-slate-400 hover:text-slate-700"
+                className="text-slate-400 opacity-0 transition-all hover:text-[#256D85] group-hover:opacity-100"
                 aria-label="New folder"
               >
-                <FolderPlus size={16} />
+                <FolderPlus size={15} strokeWidth={2.5} />
               </button>
             </div>
 
@@ -371,47 +399,80 @@ export function Sidebar() {
               )}
             </div>
           </div>
+        )}
+      </div>
+
+      <div className={`flex items-center justify-between border-t border-[#E7ECEA]/50 p-4 bg-white/20 backdrop-blur-md ${isCollapsed ? "flex-col gap-3 px-2 py-4" : ""}`}>
+        <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
+          <div className="flex h-9 w-9 items-center justify-center shrink-0 rounded-full bg-gradient-to-br from-[#78C6C9]/20 to-[#F5F7F6] font-bold text-sm text-[#256D85] shadow-sm border border-[#78C6C9]/30">
+            {session?.user?.name?.charAt(0) || "U"}
+          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="max-w-[120px] truncate text-sm font-medium text-slate-700">
+                {session?.user?.name}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{session?.user?.role}</span>
+            </div>
+          )}
+        </div>
+        <div className={`flex items-center gap-0.5 ${isCollapsed ? "flex-col" : ""}`}>
+          {(session?.user?.role === "ADMIN" || session?.user?.role === "OWNER") && (
+            <Link 
+              href="/settings/members" 
+              className="p-1.5 rounded-lg text-slate-400 hover:text-[#256D85] hover:bg-[#78C6C9]/14 transition-all duration-200"
+              aria-label="Settings"
+            >
+              <Settings size={17} strokeWidth={2} />
+            </Link>
+          )}
+          <button
+            onClick={() => signOut({ callbackUrl: "/login", redirect: true })}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50/80 transition-all duration-200"
+            aria-label="Logout"
+          >
+            <LogOut size={17} strokeWidth={2} />
+          </button>
         </div>
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className="flex items-center justify-between border-t border-slate-200 p-4 transition-colors hover:bg-slate-50 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 font-bold text-sm text-amber-700">
-                {session?.user?.name?.charAt(0) || "U"}
-              </div>
-              <div className="flex flex-col">
-                <span className="max-w-[120px] truncate text-sm font-medium text-slate-700">
-                  {session?.user?.name}
-                </span>
-                <span className="text-xs text-slate-500">{session?.user?.role}</span>
-              </div>
+      <Dialog open={dialogConfig.isOpen} onOpenChange={(isOpen) => setDialogConfig((prev) => ({ ...prev, isOpen }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{dialogConfig.title}</DialogTitle>
+            <DialogDescription>{dialogConfig.description}</DialogDescription>
+          </DialogHeader>
+          {(dialogConfig.type === 'addFolder' || dialogConfig.type === 'renameFolder') && (
+            <div className="py-4">
+              <Input
+                value={dialogConfig.inputValue}
+                onChange={(e) => setDialogConfig((prev) => ({ ...prev, inputValue: e.target.value }))}
+                placeholder={dialogConfig.inputPlaceholder}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleDialogConfirm();
+                }}
+              />
             </div>
-            <MoreHorizontal size={18} className="text-slate-400 transition-colors hover:text-indigo-600" />
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {(session?.user?.role === "ADMIN" || session?.user?.role === "OWNER") && (
-            <>
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href="/settings/members" className="flex items-center w-full">
-                  <Settings size={14} className="mr-2 text-slate-500" />
-                  Workspace Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-            </>
           )}
-          <DropdownMenuItem
-            className="cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
-            onClick={() => signOut({ callbackUrl: "/login", redirect: true })}
-          >
-            <LogOut size={14} className="mr-2" />
-            Logout
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDialogConfig((prev) => ({ ...prev, isOpen: false }))}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDialogConfirm}
+              disabled={isSubmitting || (dialogConfig.type !== 'deleteFolder' && !dialogConfig.inputValue.trim())}
+              variant={dialogConfig.type === 'deleteFolder' ? 'destructive' : 'default'}
+            >
+              {isSubmitting ? 'Please wait...' : dialogConfig.confirmLabel}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

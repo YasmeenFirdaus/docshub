@@ -59,7 +59,7 @@ export function DocumentPickerDropdown({ open, onClose, onSelect, excludeIds = [
   if (!open) return null
 
   return (
-    <div className="absolute bottom-full left-0 mb-1 w-full rounded-xl border border-slate-200 bg-white shadow-2xl z-50 overflow-hidden">
+    <div className="premium-card absolute bottom-full left-0 mb-2 w-full rounded-2xl z-50 overflow-hidden animate-doc-fade-up">
       <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2.5">
         <Search className="h-4 w-4 shrink-0 text-slate-400" />
         <input
@@ -83,7 +83,7 @@ export function DocumentPickerDropdown({ open, onClose, onSelect, excludeIds = [
             <button
               type="button"
               onClick={() => { onSelect(doc); onClose() }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-indigo-50 transition"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm hover:bg-[#78C6C9]/14 transition"
             >
               <FileText className="h-4 w-4 shrink-0 text-slate-400" />
               <span className="flex-1 min-w-0">

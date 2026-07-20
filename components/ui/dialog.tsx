@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 const Dialog = ({
@@ -32,24 +33,28 @@ const Dialog = ({
     onOpenChange?.(false)
   }, [onOpenChange])
 
-  return (
-    <>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={close}
-          />
-          {React.Children.map(children, (child) => {
-            if (React.isValidElement(child) && child.type === DialogContent) {
-              return React.cloneElement(child as React.ReactElement<any>, { onClose: close })
-            }
-            return null
-          })}
-        </div>
-      )}
-    </>
-  )
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const dialogContent = isOpen && mounted ? (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div
+        className="fixed inset-0 bg-[#1E293B]/24 backdrop-blur-sm animate-doc-fade-up"
+        onClick={close}
+      />
+      {React.Children.map(children, (child) => {
+        if (React.isValidElement(child) && child.type === DialogContent) {
+          return React.cloneElement(child as React.ReactElement<any>, { onClose: close })
+        }
+        return null
+      })}
+    </div>
+  ) : null
+
+  return mounted ? createPortal(dialogContent, document.body) : null
 }
 
 const DialogContent = React.forwardRef<
@@ -59,7 +64,7 @@ const DialogContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "relative z-50 grid w-full max-w-lg gap-4 border border-slate-200 bg-white p-6 shadow-lg rounded-lg",
+      "premium-card relative z-50 grid w-[calc(100vw-2rem)] max-w-lg gap-4 rounded-2xl p-6 animate-doc-fade-up",
       className,
     )}
     {...props}

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { updateSearchVector } from '@/lib/search'
+import { sendShareNotification } from '@/lib/email'
 
 type Params = { params: { id: string } }
 type Permission = 'VIEW' | 'EDIT'
@@ -145,7 +146,34 @@ export async function POST(req: NextRequest, { params }: Params) {
     console.error("Failed to update search vector:", error)
   }
 
+  // Fire-and-forget — don't block response on email delivery
+  notifySharedUsers(params.id, sharedWith, session.user.id).catch(() => {})
+
   return NextResponse.json({ success: true })
+}
+
+// Helper called after successful share to send notifications
+async function notifySharedUsers(
+  documentId: string,
+  sharedWith: string[],
+  sharerId: string,
+) {
+  try {
+    const [doc, sharer, recipients] = await Promise.all([
+      prisma.document.findUnique({ where: { id: documentId }, select: { title: true } }),
+      prisma.user.findUnique({ where: { id: sharerId }, select: { name: true, email: true } }),
+      prisma.user.findMany({ where: { id: { in: sharedWith } }, select: { id: true, email: true } }),
+    ])
+    if (!doc || !sharer) return
+    const sharerName = sharer.name || sharer.email || 'Someone'
+    await Promise.allSettled(
+      recipients.map((r) =>
+        sendShareNotification({ to: r.email, docTitle: doc.title, docId: documentId, sharedByName: sharerName })
+      )
+    )
+  } catch (err) {
+    console.error('Share notification error:', err)
+  }
 }
 
 // GET /api/documents/:id/share — list shares

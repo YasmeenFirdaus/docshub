@@ -109,21 +109,21 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
   }
 
   return (
-    <div className="relative mb-4 flex items-center" ref={popoverRef}>
+    <div className="relative flex items-center" ref={popoverRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${
+        className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-all ${
           filters.length > 0 
-            ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
-            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            ? 'bg-[#78C6C9]/12 border-[#78C6C9]/45 text-[#256D85] shadow-sm' 
+            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
         }`}
       >
         <Filter className="w-4 h-4" /> 
-        Filter {filters.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 rounded text-xs">{filters.length}</span>}
+        Filter {filters.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-[#78C6C9]/18 rounded text-xs">{filters.length}</span>}
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-[600px] max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4">
+        <div className="premium-card absolute top-full left-0 mt-2 w-[640px] max-w-[90vw] rounded-2xl z-50 p-4 animate-doc-fade-up">
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
             <h3 className="font-semibold text-slate-800">Filters</h3>
             {filters.length > 0 && (
@@ -135,7 +135,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
 
           <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
             {filters.length === 0 ? (
-              <div className="text-sm text-slate-500 py-4 text-center">No active filters</div>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No active filters</div>
             ) : (
               filters.map((filter, index) => {
                 const fieldDef = FILTER_FIELDS.find(f => f.id === filter.field)
@@ -152,7 +152,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                       <select 
                         value={filter.field}
                         onChange={(e) => updateFilter(filter.id, { field: e.target.value })}
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none hover:border-slate-300 focus:border-indigo-400 transition cursor-pointer"
+                        className="premium-control w-full appearance-none rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none cursor-pointer"
                       >
                         {FILTER_FIELDS.map(f => (
                           <option key={f.id} value={f.id}>{f.label}</option>
@@ -166,7 +166,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                       <select 
                         value={filter.operator}
                         onChange={(e) => updateFilter(filter.id, { operator: e.target.value })}
-                        className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none hover:border-slate-300 focus:border-indigo-400 transition cursor-pointer"
+                        className="premium-control w-full appearance-none rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none cursor-pointer"
                       >
                         {operators.map(op => (
                           <option key={op.value} value={op.value}>{op.label}</option>
@@ -182,7 +182,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                           <select 
                             value={filter.value} 
                             onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-                            className="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition cursor-pointer"
+                            className="premium-control w-full appearance-none rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none cursor-pointer"
                           >
                             <option value="">Select value...</option>
                             {fieldDef.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -194,7 +194,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                           <select 
                             value={String(filter.value)} 
                             onChange={(e) => updateFilter(filter.id, { value: e.target.value === 'true' })}
-                            className="w-full appearance-none bg-white border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition cursor-pointer"
+                            className="premium-control w-full appearance-none rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none cursor-pointer"
                           >
                             <option value="true">True</option>
                             <option value="false">False</option>
@@ -206,7 +206,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                           type="date"
                           value={filter.value}
                           onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
-                          className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition"
+                          className="premium-control w-full rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none"
                         />
                       ) : (
                         <input 
@@ -214,7 +214,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                           value={filter.value}
                           onChange={(e) => updateFilter(filter.id, { value: e.target.value })}
                           placeholder="Enter value..."
-                          className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg px-3 py-1.5 outline-none focus:border-indigo-400 transition placeholder:text-slate-300"
+                          className="premium-control w-full rounded-lg px-3 py-1.5 text-sm text-slate-700 outline-none placeholder:text-slate-300"
                         />
                       )}
                     </div>
@@ -234,13 +234,13 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
             <button 
               onClick={addFilter}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-[#256D85] hover:bg-[#78C6C9]/14 rounded-lg transition font-medium"
             >
               <Plus className="w-4 h-4" /> Add filter
             </button>
             <button 
               onClick={() => setIsOpen(false)}
-              className="px-4 py-1.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition"
+              className="arctic-primary px-4 py-1.5 text-sm font-medium rounded-lg transition"
             >
               Done
             </button>

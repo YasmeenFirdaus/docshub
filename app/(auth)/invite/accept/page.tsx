@@ -49,7 +49,7 @@ function InviteAcceptForm() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-indigo-500"
+          className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-[#78C6C9]"
           required
         />
       </div>
@@ -59,14 +59,14 @@ function InviteAcceptForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-indigo-500"
+          className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-[#78C6C9]"
           required
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-indigo-600 text-white p-3 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+        className="w-full bg-[#256D85] text-white p-3 rounded-lg font-medium hover:bg-[#1f5c70] disabled:opacity-50"
       >
         {loading ? "Creating Account..." : "Accept Invitation"}
       </button>
@@ -79,7 +79,7 @@ export default function AcceptInvitePage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="max-w-md w-full p-8 bg-white rounded-xl shadow-sm border border-slate-100">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-indigo-600 rounded-lg mx-auto mb-4 flex items-center justify-center text-white">
+          <div className="w-12 h-12 bg-[#256D85] rounded-lg mx-auto mb-4 flex items-center justify-center text-white">
             <Layers size={24} />
           </div>
           <h2 className="text-2xl font-semibold">Join Workspace</h2>

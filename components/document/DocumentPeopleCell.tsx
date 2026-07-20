@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Plus, Search, UserPlus } from "lucide-react";
+import { Check, Plus, UserPlus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,11 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 
 import type { Person } from "./types";
@@ -47,23 +42,22 @@ export function DocumentPeopleCell({
   people,
   selectablePeople,
   onUpdateContributors,
-  onAddReviewer,
+  onUpdateReviewers,
 }: {
   documentId: string;
   mode: Mode;
   people: Person[];
   selectablePeople: Person[];
   onUpdateContributors?: (documentId: string, userIds: string[]) => Promise<void> | void;
-  onAddReviewer?: (documentId: string, reviewerId: string) => Promise<void> | void;
+  onUpdateReviewers?: (documentId: string, userIds: string[]) => Promise<void> | void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>(people.map((person) => person.id));
-  const [singleReviewerId, setSingleReviewerId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setSelectedIds(people.map((person) => person.id));
-  }, [people]);
+  }, [people, open]); // reset selection when opening or people changes
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -85,92 +79,39 @@ export function DocumentPeopleCell({
         : `${people.length} ${mode}`
       : `Add ${mode}`;
 
-  if (mode === "reviewers") {
-    return (
-      <>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" className="h-8 gap-1 rounded-md px-2 text-sm">
-              <UserPlus className="h-4 w-4" />
-              <span className="truncate">{triggerLabel}</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent className="w-80 p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search reviewer..." value={query} onValueChange={setQuery} />
-              <CommandList>
-                <CommandEmpty>No user found.</CommandEmpty>
-                <CommandGroup heading={label}>
-                  {filtered.map((person) => (
-                    <CommandItem
-                      key={person.id}
-                      value={`${person.name} ${person.email}`}
-                      onSelect={async () => {
-                        const previous = singleReviewerId;
-                        setSingleReviewerId(person.id);
-                        setOpen(false);
-
-                        try {
-                          if (!onAddReviewer) return;
-                          await Promise.resolve(onAddReviewer(documentId, person.id));
-                        } catch {
-                          setSingleReviewerId(previous);
-                        }
-                      }}
-                    >
-                      <Avatar className="mr-2 h-6 w-6">
-                        <AvatarImage src={person.avatar_url ?? undefined} alt={person.name} />
-                        <AvatarFallback className="text-[10px]">{initials(person.name)}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm">{person.name}</div>
-                        <div className="truncate text-xs text-slate-500">{person.email}</div>
-                      </div>
-                      <Check
-                        className={cn(
-                          "ml-2 h-4 w-4",
-                          singleReviewerId === person.id ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-
-        <span className="text-xs text-slate-500">
-          {people.length > 0 ? `${people.length} reviewer${people.length > 1 ? "s" : ""}` : "None"}
-        </span>
-      </>
-    );
-  }
+  const Icon = mode === "contributors" ? Plus : UserPlus;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-8 gap-1 rounded-md px-2 text-sm"
-        onClick={() => setOpen(true)}
-      >
-        <Plus className="h-4 w-4" />
-        <span className="truncate">{triggerLabel}</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-8 gap-1 rounded-md px-2 text-sm"
+          onClick={() => setOpen(true)}
+        >
+          <Icon className="h-4 w-4" />
+          <span className="truncate">{triggerLabel}</span>
+        </Button>
+        {mode === "reviewers" && (
+          <span className="text-xs text-slate-500">
+            {people.length > 0 ? `${people.length} reviewer${people.length > 1 ? "s" : ""}` : "None"}
+          </span>
+        )}
+      </div>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Manage contributors</DialogTitle>
+          <DialogTitle>Manage {mode}</DialogTitle>
           <DialogDescription>
-            Add workspace members as contributors for this document.
+            {mode === "contributors"
+              ? "Add workspace members as contributors for this document."
+              : "Select workspace members to request a review from."}
           </DialogDescription>
         </DialogHeader>
 
         <Command className="rounded-lg border">
-          <CommandInput placeholder="Search contributor..." value={query} onValueChange={setQuery} />
+          <CommandInput placeholder={`Search ${mode.slice(0, -1)}...`} value={query} onValueChange={setQuery} />
           <CommandList>
             <CommandEmpty>No user found.</CommandEmpty>
             <CommandGroup heading={label}>
@@ -214,22 +155,20 @@ export function DocumentPeopleCell({
           <Button
             type="button"
             onClick={async () => {
-              if (!onUpdateContributors) {
-                setOpen(false);
-                return;
-              }
-
               const previous = people.map((person) => person.id);
-
               try {
-                await Promise.resolve(onUpdateContributors(documentId, selectedIds));
+                if (mode === "contributors" && onUpdateContributors) {
+                  await Promise.resolve(onUpdateContributors(documentId, selectedIds));
+                } else if (mode === "reviewers" && onUpdateReviewers) {
+                  await Promise.resolve(onUpdateReviewers(documentId, selectedIds));
+                }
                 setOpen(false);
               } catch {
                 setSelectedIds(previous);
               }
             }}
           >
-            Save contributors
+            Save {mode}
           </Button>
         </div>
       </DialogContent>

@@ -33,11 +33,18 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     fetchDoc()
   }, [params.id])
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-400" /></div>
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="animate-spin text-[#256D85]" />
+        <p className="text-sm font-medium text-slate-500">Opening document...</p>
+      </div>
+    </div>
+  )
   
   if (error || doc?.error) return (
     <div className="h-screen flex items-center justify-center text-red-500 bg-slate-50">
-      <div className="bg-white p-8 rounded-xl border border-red-100 shadow-sm text-center">
+      <div className="premium-card rounded-2xl p-8 text-center">
         <h2 className="text-lg font-semibold mb-2">Access Denied</h2>
         <p className="text-sm text-slate-600">This document does not exist or you do not have permission to view it.</p>
       </div>
@@ -47,7 +54,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
   const locationPath = doc.workspace ? `${doc.workspace.name} ${doc.folder ? `/ ${doc.folder.name}` : ''}` : 'Private'
 
   return (
-    <div className="flex flex-col h-screen bg-[#FAFBFC] overflow-hidden w-full">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-slate-100">
       <EditorHeader 
         documentId={doc.id}
         title={doc.title} 
@@ -56,6 +63,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         visibility={doc.visibility}
         type={doc.type}
         workspaceId={doc.workspace_id}
+        ownerId={doc.owner_id}
         activePanel={activePanel}
         setActivePanel={setActivePanel}
         content={doc.content}
@@ -64,7 +72,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
       {/* Extract isPdf to determine iframe source */}
 
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto relative bg-white m-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <main className="premium-card relative m-4 flex flex-1 flex-col overflow-y-auto rounded-2xl bg-white">
           
           {/* TRAFFIC CONTROLLER: Render Editor OR File Viewer */}
             {doc.type === 'EDITABLE' ? (

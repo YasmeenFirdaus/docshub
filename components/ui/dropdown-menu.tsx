@@ -57,7 +57,7 @@ const DropdownMenuContent = React.forwardRef<
         ;(contentRef as React.MutableRefObject<HTMLDivElement | null>).current = node
       }}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white p-1 text-slate-900 shadow-md animate-in fade-in-0 zoom-in-95",
+        "premium-card absolute top-full mt-2 z-50 min-w-[10rem] overflow-hidden rounded-xl p-1 text-slate-900 animate-doc-fade-up",
         align === "start" && "left-0",
         align === "end" && "right-0",
         className,
@@ -72,12 +72,12 @@ DropdownMenuContent.displayName = "DropdownMenuContent"
 
 const DropdownMenuItem = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
+>(({ className, asChild, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-slate-100 hover:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className={cn(
+      "relative flex cursor-default select-none items-center rounded-lg px-2.5 py-2 text-sm outline-none transition-colors hover:bg-slate-100 hover:text-slate-950 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     {...props}

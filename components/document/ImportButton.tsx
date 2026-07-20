@@ -12,6 +12,7 @@ interface ImportButtonProps {
 export function ImportButton({ workspaceId, folderId }: ImportButtonProps) {
   const router = useRouter()
   const [isImporting, setIsImporting] = useState(false)
+  const [error, setError] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -19,6 +20,7 @@ export function ImportButton({ workspaceId, folderId }: ImportButtonProps) {
     if (!file) return
 
     setIsImporting(true)
+    setError("")
     const formData = new FormData()
     formData.append("file", file)
     if (workspaceId) formData.append("workspace_id", workspaceId)
@@ -39,11 +41,11 @@ export function ImportButton({ workspaceId, folderId }: ImportButtonProps) {
         
         router.push(`/document/${document.id}`)
       } else {
-        alert("Failed to import document.")
+        setError("Failed to import document.")
       }
     } catch (error) {
       console.error(error)
-      alert("An error occurred during import.")
+      setError("An error occurred during import.")
     } finally {
       setIsImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -58,14 +60,17 @@ export function ImportButton({ workspaceId, folderId }: ImportButtonProps) {
         ref={fileInputRef} 
         onChange={handleFileUpload} 
       />
-      <button 
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isImporting}
-        className="flex items-center px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
-      >
-        {isImporting ? <Loader2 size={16} className="mr-2 animate-spin text-slate-400" /> : <Upload size={16} className="mr-2" />}
-        {isImporting ? "Importing..." : "Import"}
-      </button>
+      <div className="relative inline-flex flex-col items-end gap-1">
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isImporting}
+          className="premium-control flex h-10 items-center rounded-lg px-4 text-sm font-semibold text-slate-700 disabled:opacity-50"
+        >
+          {isImporting ? <Loader2 size={16} className="mr-2 animate-spin text-slate-400" /> : <Upload size={16} className="mr-2" />}
+          {isImporting ? "Importing..." : "Import"}
+        </button>
+        {error && <span className="absolute right-0 top-11 w-56 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600 shadow-sm">{error}</span>}
+      </div>
     </>
   )
 }

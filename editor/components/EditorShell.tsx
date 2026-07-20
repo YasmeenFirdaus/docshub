@@ -7,7 +7,7 @@ export function EditorShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col h-screen bg-white">
       {/* Micro-header for quick navigation back to All Docs */}
-      <header className="h-12 border-b border-slate-200 flex items-center px-4 bg-[#FAFBFC]">
+      <header className="h-12 border-b border-[#E7ECEA] flex items-center px-4 bg-[#F5F7F6]/80 backdrop-blur">
         <Link 
           href="/all-docs" 
           className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors"

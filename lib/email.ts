@@ -127,3 +127,64 @@ export const MailService = {
     return await this.sendMail(to, subject, htmlContent);
   }
 };
+
+export async function sendPasswordResetEmail({ to, token }: { to: string; token: string }) {
+  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #0f172a; margin-top: 0;">Reset your password</h2>
+      <p style="color: #475569; font-size: 15px;">
+        We received a request to reset your DocHub password. Click the button below to set a new password. This link expires in <strong>1 hour</strong>.
+      </p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${resetUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          Reset Password
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+    </div>
+  `;
+  return MailService.sendMail(to, 'Reset your DocHub password', html);
+}
+
+export async function sendShareNotification({
+  to, docTitle, docId, sharedByName,
+}: { to: string; docTitle: string; docId: string; sharedByName: string }) {
+  const docUrl = `${process.env.NEXTAUTH_URL}/document/${docId}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #0f172a; margin-top: 0;">A document has been shared with you</h2>
+      <p style="color: #475569; font-size: 15px;">
+        <strong>${sharedByName}</strong> has shared the document <strong>"${docTitle}"</strong> with you on DocHub.
+      </p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${docUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          Open Document
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px;">You can access this document at any time from your DocHub dashboard.</p>
+    </div>
+  `;
+  return MailService.sendMail(to, `${sharedByName} shared "${docTitle}" with you`, html);
+}
+
+export async function sendReviewerNotification({
+  to, docTitle, docId, requestedByName,
+}: { to: string; docTitle: string; docId: string; requestedByName: string }) {
+  const docUrl = `${process.env.NEXTAUTH_URL}/document/${docId}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+      <h2 style="color: #0f172a; margin-top: 0;">You've been assigned as a reviewer</h2>
+      <p style="color: #475569; font-size: 15px;">
+        <strong>${requestedByName}</strong> has requested your review on the document <strong>"${docTitle}"</strong>.
+      </p>
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${docUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          Review Document
+        </a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px;">Please open the document and share your feedback at your earliest convenience.</p>
+    </div>
+  `;
+  return MailService.sendMail(to, `Review requested: "${docTitle}"`, html);
+}

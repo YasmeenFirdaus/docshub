@@ -2,7 +2,22 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Sparkles } from "lucide-react"
-import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from "@blocknote/react"
+import { 
+  useCreateBlockNote, 
+  SuggestionMenuController, 
+  getDefaultReactSlashMenuItems,
+  FormattingToolbarController,
+  FormattingToolbar,
+  BasicTextStyleButton,
+  BlockTypeSelect,
+  ColorStyleButton,
+  CreateLinkButton,
+  FileCaptionButton,
+  FileReplaceButton,
+  NestBlockButton,
+  TextAlignButton,
+  UnnestBlockButton
+} from "@blocknote/react"
 import { BlockNoteView } from "@blocknote/mantine"
 import { BlockNoteSchema, defaultBlockSpecs, filterSuggestionItems } from "@blocknote/core"
 import "@blocknote/mantine/style.css"
@@ -72,76 +87,19 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
     }
   }, [editor, documentId, setContent])
 
-  // 4. INLINE AI SELECTION LISTENER
-  useEffect(() => {
-    const handleSelectionChange = () => {
-      const sel = window.getSelection()
-      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        setSelection(null)
-        setInlineSelection(null)
-        return
-      }
-
-      const text = sel.toString().trim()
-      if (!text) {
-        setSelection(null)
-        setInlineSelection(null)
-        return
-      }
-
-      const range = sel.getRangeAt(0)
-      const rect = range.getBoundingClientRect()
-
-      if (!containerRef.current?.contains(range.commonAncestorContainer)) {
-        setSelection(null)
-        setInlineSelection(null)
-        return
-      }
-
-      const next = {
-        text,
-        x: Math.min(rect.left + rect.width / 2, window.innerWidth - 220),
-        y: Math.max(rect.top - 16, 20),
-        documentId,
-        onApply: (nextText: string) => {
-          // ponytail: execCommand is deprecated but still works in all major browsers for contenteditable; upgrade path is BlockNote's internal insertText API
-          document.execCommand('insertText', false, nextText)
-        },
-      }
-
-      setSelection(next)
-      setInlineSelection(next)
-    }
-
-    document.addEventListener('selectionchange', handleSelectionChange)
-    return () => document.removeEventListener('selectionchange', handleSelectionChange)
-  }, [documentId, setInlineSelection])
+  // 4. WE REMOVED THE AUTO-LISTENER. INLINE AI IS NOW TRIGGERED BY TOOLBAR BUTTON.
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-12 h-full flex flex-col relative w-full">
-      {/* Title + Ask AI bar */}
-      <div className="flex items-start justify-between gap-4 mb-8 px-[50px]">
+      <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-4 py-8 sm:px-12 lg:px-16 relative">
+      {/* Title */}
+      <div className="mb-6 flex flex-col gap-2 px-12">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Untitled Document"
-          className="text-4xl font-bold text-slate-900 placeholder:text-slate-300 border-none outline-none bg-transparent focus:ring-0 w-full"
+          placeholder="Untitled"
+          className="w-full border-none bg-transparent text-[42px] font-bold leading-tight tracking-tight text-slate-900 outline-none placeholder:text-slate-300 focus:ring-0 px-0"
         />
-        <button
-          type="button"
-          onClick={() =>
-            openDocumentPanel({
-              id: documentId,
-              title,
-              content: editor.document,
-            })
-          }
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition"
-        >
-          <Sparkles className="w-4 h-4" />
-          Ask AI
-        </button>
       </div>
 
       <div ref={containerRef} className="flex-1 cursor-text relative">
@@ -150,7 +108,55 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
           theme="light"
           onChange={() => setContent(editor.document)}
           slashMenu={false}
+          formattingToolbar={false}
         >
+          {!selection && (
+            <FormattingToolbarController
+              formattingToolbar={() => (
+                <FormattingToolbar>
+                  <BlockTypeSelect key={"blockTypeSelect"} />
+                  <BasicTextStyleButton basicTextStyle={"bold"} key={"boldStyleButton"} />
+                  <BasicTextStyleButton basicTextStyle={"italic"} key={"italicStyleButton"} />
+                  <BasicTextStyleButton basicTextStyle={"underline"} key={"underlineStyleButton"} />
+                  <BasicTextStyleButton basicTextStyle={"strike"} key={"strikeStyleButton"} />
+                  <TextAlignButton textAlignment={"left"} key={"textAlignLeftButton"} />
+                  <TextAlignButton textAlignment={"center"} key={"textAlignCenterButton"} />
+                  <TextAlignButton textAlignment={"right"} key={"textAlignRightButton"} />
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sel = window.getSelection()
+                      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return
+                      const text = sel.toString().trim()
+                      if (!text) return
+                      const range = sel.getRangeAt(0)
+                      const rect = range.getBoundingClientRect()
+                      
+                      const next = {
+                        text,
+                        x: Math.min(rect.left + rect.width / 2, window.innerWidth - 220),
+                        y: Math.max(rect.top - 16, 20),
+                        documentId,
+                        onApply: (nextText: string) => {
+                          document.execCommand('insertText', false, nextText)
+                        },
+                      }
+                      
+                      setSelection(next)
+                      setInlineSelection(next)
+                    }}
+                    className="mx-1 flex h-7 items-center justify-center gap-1 rounded bg-[#78C6C9]/12 px-2 text-xs font-semibold text-[#256D85] hover:bg-[#78C6C9]/20 transition-colors"
+                  >
+                    <Sparkles size={14} />
+                    Ask AI
+                  </button>
+
+                  <CreateLinkButton key={"createLinkButton"} />
+                </FormattingToolbar>
+              )}
+            />
+          )}
           <SuggestionMenuController
             triggerCharacter={"/"}
             getItems={async (query) =>

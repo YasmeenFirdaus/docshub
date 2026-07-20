@@ -86,7 +86,7 @@ export const OmniSearch: React.FC = () => {
     <>
       <div 
         onClick={() => setIsOpen(false)} 
-        className="fixed inset-0 bg-slate-900/10 backdrop-blur-sm z-50 animate-in fade-in duration-200" 
+        className="fixed inset-0 bg-[#1E293B]/10 backdrop-blur-sm z-50 animate-in fade-in duration-200" 
       />
       <div 
         className="fixed top-[15%] left-1/2 -translate-x-1/2 w-full max-w-2xl bg-white border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in zoom-in-95 fade-in duration-200"
@@ -103,12 +103,12 @@ export const OmniSearch: React.FC = () => {
               title="Toggle AI Semantic Search"
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
                 useAI 
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' 
+                  ? 'bg-[#78C6C9]/12 border-[#78C6C9]/45 text-[#256D85] shadow-sm' 
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
               }`}
             >
               <span>Ask AI</span>
-              <Sparkles className={`w-3.5 h-3.5 ${useAI ? 'text-indigo-600' : 'text-indigo-500'}`} />
+              <Sparkles className={`w-3.5 h-3.5 ${useAI ? 'text-[#256D85]' : 'text-[#256D85]'}`} />
             </button>
             <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-200/50 hidden sm:flex">
               <Command className="w-3 h-3" /><span>Esc</span>
@@ -145,7 +145,7 @@ export const OmniSearch: React.FC = () => {
                       
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full ${isSelected ? 'bg-indigo-600 text-white shadow-sm' : 'border border-indigo-200 text-indigo-500 bg-indigo-50/50'}`}>
+                          <div className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full ${isSelected ? 'bg-[#256D85] text-white shadow-sm' : 'border border-[#78C6C9]/45 text-[#256D85] bg-[#78C6C9]/12'}`}>
                             <FileText className="w-3 h-3" />
                           </div>
 

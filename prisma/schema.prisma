@@ -9,15 +9,17 @@ datasource db {
 
 // ─── USERS ───────────────────────────────────────────────
 model User {
-  id               String            @id @default(cuid())
-  name             String?
-  email            String            @unique
-  password_hash    String
-  role             Role              @default(USER)
-  status           UserStatus        @default(ACTIVE)
-  avatar_url       String?
-  created_at       DateTime          @default(now())
-  updated_at       DateTime          @updatedAt
+  id                   String            @id @default(cuid())
+  name                 String?
+  email                String            @unique
+  password_hash        String
+  role                 Role              @default(USER)
+  status               UserStatus        @default(ACTIVE)
+  avatar_url           String?
+  reset_token          String?           @unique
+  reset_token_expires  DateTime?
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
 
   workspaces       WorkspaceMember[]
   documents        Document[]        @relation("DocumentOwner")

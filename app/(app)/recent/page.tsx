@@ -355,58 +355,42 @@ export default function RecentPage() {
   }, [router]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto h-full flex flex-col">
+    <div className="mx-auto flex h-full max-w-[1500px] flex-col p-5 lg:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900">Recent Documents</h1>
-        
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition"
-          >
-            <Upload className="w-4 h-4" /> Import
-          </button>
-          <button
-            type="button"
-            onClick={handleNewDocument}
-            disabled={isCreating}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
-          >
-            <Plus className="w-4 h-4" />
-            {isCreating ? "Creating..." : "New Document"}
-          </button>
+      <div className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#1E293B]">Recent Documents</h1>
+          <p className="mt-1 text-sm text-slate-500">Pick up where your team last worked.</p>
         </div>
       </div>
 
       {/* Top Bar Filters & Search */}
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <div className="relative w-64">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search documents..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400"
-          />
-        </div>
-        <div className="flex items-center gap-3">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FilterBar filters={filters} setFilters={setFilters} />
+          
           <select 
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 outline-none"
+            className="flex h-8 w-36 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[13px] font-medium text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 outline-none"
           >
             <option value="updated_at">Sort by Updated</option>
             <option value="created_at">Sort by Created</option>
           </select>
-          <span className="text-sm text-slate-400">{docs.length} documents</span>
+
+          <span className="ml-1 text-sm text-slate-500 font-medium">{docs.length} docs</span>
         </div>
-      </div>
-      
-      {/* ClickUp Style Filter Bar */}
-      <div className="mb-4 shrink-0">
-        <FilterBar filters={filters} setFilters={setFilters} />
+
+        <div className="relative w-full sm:w-48">
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-[13px] outline-none transition-all focus:border-[#256D85] focus:ring-1 focus:ring-[#78C6C9]"
+          />
+        </div>
       </div>
 
       {error ? (
@@ -417,9 +401,17 @@ export default function RecentPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white">
-          <div className="w-8 h-8 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <div className="mt-4 text-slate-400 text-sm">Loading documents...</div>
+        <div className="premium-card flex-1 rounded-2xl p-5">
+          <div className="space-y-3">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-3">
+                <div className="h-8 w-8 rounded-lg skeleton-shimmer" />
+                <div className="h-4 flex-1 rounded skeleton-shimmer" />
+                <div className="h-4 w-28 rounded skeleton-shimmer" />
+                <div className="h-4 w-20 rounded skeleton-shimmer" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <DocTable

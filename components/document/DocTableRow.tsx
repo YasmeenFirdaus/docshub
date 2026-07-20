@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 
 import {
   addContributors,
-  addReviewer,
+  addReviewers,
   archiveDocument,
   deleteDocument,
   moveDocument,
@@ -134,7 +134,7 @@ export function DocTableRow({
                 e.stopPropagation();
                 router.push(`/document/${doc.id}`);
               }}
-              className="truncate font-medium text-slate-900 hover:text-blue-600 hover:underline"
+              className="truncate font-medium text-slate-900 hover:text-[#256D85] hover:underline"
             >
               {localTitle}
             </button>
@@ -222,8 +222,8 @@ export function DocTableRow({
           mode="reviewers"
           people={doc.reviewers}
           selectablePeople={members}
-          onAddReviewer={async (documentId, reviewerId) => {
-            await addReviewer(documentId, reviewerId);
+          onUpdateReviewers={async (documentId, reviewerIds) => {
+            await addReviewers(documentId, reviewerIds);
             onRefresh();
           }}
         />
