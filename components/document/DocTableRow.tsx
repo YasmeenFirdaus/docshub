@@ -24,6 +24,7 @@ import { DocumentActionMenu } from "./ActionMenu";
 import { DocumentLocationCell } from "./DocumentLocationCell";
 import { DocumentPeopleCell } from "./DocumentPeopleCell";
 import { DocumentStatusCell } from "./DocumentStatusCell";
+import { DocumentTypeBadge } from "./DocumentTypeBadge";
 
 function initials(name: string) {
   return name
@@ -138,6 +139,7 @@ export function DocTableRow({
             >
               {localTitle}
             </button>
+            <DocumentTypeBadge type={doc.type || "EDITABLE"} />
 
             <button
               type="button"

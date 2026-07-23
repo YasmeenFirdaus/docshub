@@ -39,6 +39,7 @@ type RawWorkspace = {
 };
 
 type RawDocument = {
+  type?: string | null;
   id?: string;
   title?: string | null;
   status?: string | null;
@@ -81,7 +82,8 @@ function formatDateLabel(value: string | null | undefined) {
   });
 }
 
-function normalizePerson(person: RawPerson): Person | null {
+function normalizePerson(person: RawPerson | null): Person | null {
+  if (!person) return null;
   const id = typeof person.id === "string" ? person.id : "";
   if (!id) return null;
 
@@ -108,6 +110,7 @@ function normalizeFolders(input: RawFolder[] | null | undefined): FolderNode[] {
 
   return input
     .reduce<FolderNode[]>((acc, folder) => {
+      if (!folder) return acc;
       const id = typeof folder.id === "string" ? folder.id : "";
       if (!id) return acc;
 
@@ -135,6 +138,7 @@ function normalizeWorkspaces(input: unknown): WorkspaceNode[] {
 
   return items
     .map((workspace) => {
+      if (!workspace) return null;
       const id = typeof workspace.id === "string" ? workspace.id : "";
       if (!id) return null;
 
@@ -159,6 +163,7 @@ function normalizeDocuments(input: unknown): DocumentRowData[] {
 
   return items
     .map((doc) => {
+      if (!doc) return null;
       const id = typeof doc.id === "string" ? doc.id : "";
       if (!id) return null;
 
@@ -238,6 +243,7 @@ function normalizeDocuments(input: unknown): DocumentRowData[] {
         sharing,
         reviewers,
         review_status: reviewStatus,
+        type: typeof doc.type === "string" ? doc.type : undefined,
       };
     })
     .filter(Boolean) as DocumentRowData[];
@@ -332,7 +338,7 @@ export default function AllDocsPage() {
       const res = await fetch("/api/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Untitled Document" }),
+        body: JSON.stringify({ title: "Untitled Document", source: "All Docs" }),
       });
 
       if (!res.ok) {

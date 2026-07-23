@@ -1,7 +1,7 @@
 import { AuthProvider } from "@/components/providers/AuthProvider"
 
 export const metadata = {
-  title: 'Enterprise DMS',
+  title: 'DocHub',
   description: 'Document Management System',
 }
 

@@ -37,4 +37,5 @@ export type DocumentRowData = {
   sharing: Person[];
   reviewers: Person[];
   review_status?: string | null;
+  type?: string;
 };

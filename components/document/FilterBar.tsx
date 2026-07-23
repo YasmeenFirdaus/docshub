@@ -15,7 +15,7 @@ type FilterBarProps = {
   setFilters: (filters: FilterCondition[]) => void
 }
 
-const FILTER_FIELDS = [
+const DOCUMENT_FILTER_FIELDS = [
   { id: 'owner', label: 'Owner', type: 'text' },
   { id: 'contributors', label: 'Contributors', type: 'text' },
   { id: 'reviewer', label: 'Reviewer', type: 'text' },
@@ -56,7 +56,7 @@ const getOperators = (type: string) => {
   }
 }
 
-export function FilterBar({ filters, setFilters }: FilterBarProps) {
+export function FilterBar({ filters, setFilters, fields = DOCUMENT_FILTER_FIELDS }: FilterBarProps & { fields?: typeof DOCUMENT_FILTER_FIELDS }) {
   const [isOpen, setIsOpen] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -71,7 +71,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
   }, [])
 
   const addFilter = () => {
-    const availableField = FILTER_FIELDS.find(f => !filters.some(active => active.field === f.id)) || FILTER_FIELDS[0]
+    const availableField = fields.find(f => !filters.some(active => active.field === f.id)) || fields[0]
     setFilters([
       ...filters,
       {
@@ -93,7 +93,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
         const nextFilter = { ...f, ...updates }
         // If field changed, reset operator and value appropriately
         if (updates.field && updates.field !== f.field) {
-          const fieldDef = FILTER_FIELDS.find(field => field.id === updates.field)
+          const fieldDef = fields.find(field => field.id === updates.field)
           nextFilter.operator = getOperators(fieldDef?.type || 'text')[0].value
           nextFilter.value = fieldDef?.type === 'boolean' ? true : ''
         }
@@ -138,7 +138,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No active filters</div>
             ) : (
               filters.map((filter, index) => {
-                const fieldDef = FILTER_FIELDS.find(f => f.id === filter.field)
+                const fieldDef = fields.find(f => f.id === filter.field)
                 const operators = getOperators(fieldDef?.type || 'text')
                 
                 return (
@@ -154,7 +154,7 @@ export function FilterBar({ filters, setFilters }: FilterBarProps) {
                         onChange={(e) => updateFilter(filter.id, { field: e.target.value })}
                         className="premium-control w-full appearance-none rounded-lg bg-slate-50 px-3 py-1.5 text-sm text-slate-700 outline-none cursor-pointer"
                       >
-                        {FILTER_FIELDS.map(f => (
+                        {fields.map(f => (
                           <option key={f.id} value={f.id}>{f.label}</option>
                         ))}
                       </select>

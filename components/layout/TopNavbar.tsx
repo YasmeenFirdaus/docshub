@@ -1,7 +1,8 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Search, Sparkles } from 'lucide-react'
+import { Search, Sparkles, Settings } from 'lucide-react'
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useAIStore } from '@/stores/ai.store'
 import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
@@ -63,9 +64,15 @@ export function TopNavbar() {
         <Sparkles className="h-5 w-5" />
       </button>
 
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#78C6C9]/18 text-sm font-semibold uppercase text-[#256D85] ring-2 ring-white">
-        {session?.user.name?.[0] ?? session?.user.email?.[0] ?? 'U'}
-      </div>
+      {(session?.user?.role === 'ADMIN' || session?.user?.role === 'OWNER') && (
+        <Link
+          href="/settings"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#78C6C9]/18 text-[#256D85] ring-2 ring-white transition hover:bg-[#78C6C9]/30"
+          title="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </Link>
+      )}
     </header>
   )
 }

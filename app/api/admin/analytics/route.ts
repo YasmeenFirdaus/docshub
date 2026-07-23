@@ -16,21 +16,48 @@ export async function GET() {
       totalWorkspaces,
       activeUsersCount,
       pendingReviews,
-      totalStorage
+      totalStorage,
+      totalShared
     ] = await Promise.all([
       prisma.document.count({ where: { is_deleted: false } }),
       prisma.workspace.count(),
       prisma.user.count({ where: { status: 'ACTIVE' } }),
       prisma.reviewRequest.count({ where: { status: 'PENDING' } }),
-      prisma.document.aggregate({ _sum: { file_size: true } })
+      prisma.document.aggregate({ _sum: { file_size: true } }),
+      prisma.documentShare.count()
     ])
 
-    // Mocking the 30-day activity data for the chart as per Phase 2 requirements
-    // In production, you would group by created_at in Prisma
-    const activityData = Array.from({ length: 7 }).map((_, i) => ({
-      name: `Day ${i + 1}`,
-      docs: Math.floor(Math.random() * 50) + 10
-    }))
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+    sevenDaysAgo.setHours(0, 0, 0, 0)
+    
+    const logs = await prisma.activityLog.findMany({
+      where: { created_at: { gte: sevenDaysAgo } },
+      select: { created_at: true, action: true }
+    })
+
+    const chartMap = new Map()
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(sevenDaysAgo)
+      d.setDate(d.getDate() + i)
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      chartMap.set(label, { name: label, Created: 0, Edited: 0, Reviewed: 0, Shared: 0, Deleted: 0 })
+    }
+
+    logs.forEach(log => {
+      const label = new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      if (chartMap.has(label)) {
+        const entry = chartMap.get(label)
+        const action = log.action as string;
+        if (action === 'DOCUMENT_CREATED' || action === 'DOCUMENT_IMPORTED') entry.Created++
+        else if (action === 'DOCUMENT_EDITED') entry.Edited++
+        else if (action === 'REVIEW_REQUESTED' || action === 'REVIEW_APPROVED' || action === 'REVIEW_REJECTED' || action === 'REVIEW_COMPLETED') entry.Reviewed++
+        else if (action === 'DOCUMENT_SHARED') entry.Shared++
+        else if (action === 'DOCUMENT_DELETED' || action === 'PERMANENT_DELETE') entry.Deleted++
+      }
+    })
+
+    const activityData = Array.from(chartMap.values())
 
     return NextResponse.json({
       total_documents: totalDocuments,
@@ -38,7 +65,8 @@ export async function GET() {
       active_users: activeUsersCount,
       pending_reviews: pendingReviews,
       storage_bytes: totalStorage._sum.file_size || 0,
-      activity_data: activityData
+      activity_data: activityData,
+      shared_documents: totalShared
     })
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch analytics" }, { status: 500 })

@@ -35,7 +35,7 @@ export default function LoginPage() {
       if (session?.user?.role === 'ADMIN') {
         router.push("/admin/dashboard")
       } else {
-        router.push("/all-docs")
+        router.push("/home")
       }
     }
   } // <--- 2. Added this missing closing bracket for handleSubmit!
@@ -47,7 +47,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 bg-[#256D85] rounded-lg mx-auto mb-4 flex items-center justify-center text-white font-bold text-xl">
             DH
           </div>
-          <h2 className="text-2xl font-semibold">Enterprise DMS</h2>
+          <h2 className="text-2xl font-semibold">DocHub</h2>
           <p className="text-slate-500 mt-2 text-sm">Sign in to your workspace</p>
         </div>
 

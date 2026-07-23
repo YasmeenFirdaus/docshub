@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import * as bcrypt from "bcryptjs"
+import { logActivity } from "./activity"
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -10,6 +11,17 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/login",
+  },
+  events: {
+    async signIn({ user }) {
+      void logActivity(user.id, "LOGIN", {
+        operation: "LOGIN",
+        resource_type: "USER",
+        resource_id: user.id,
+        resource_label: user.email ?? "Unknown",
+        source: "System",
+      })
+    }
   },
   providers: [
     CredentialsProvider({

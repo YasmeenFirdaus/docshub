@@ -75,20 +75,42 @@ export async function POST(req: Request) {
       )
     }
 
-    const document = await prisma.document.create({
-      data: {
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        content: (isReadOnly ? null : []) as any,
-        file_url: fileUrl,
-        file_name: file.name,
-        file_size: file.size,
-        workspace_id: targetWorkspaceId,
-        ...(folderId && folderId !== "undefined" ? { folder_id: folderId } : {}),
-        owner_id: session.user.id,
-        type: docType,
-        status: 'DRAFT',
-        visibility: 'PRIVATE'
-      }
+    let document;
+    await prisma.$transaction(async (tx) => {
+      document = await tx.document.create({
+        data: {
+          title: file.name.replace(/\.[^/.]+$/, ""),
+          content: (isReadOnly ? null : []) as any,
+          file_url: fileUrl,
+          file_name: file.name,
+          file_size: file.size,
+          workspace_id: targetWorkspaceId,
+          ...(folderId && folderId !== "undefined" ? { folder_id: folderId } : {}),
+          owner_id: session.user.id,
+          type: docType,
+          status: 'DRAFT',
+          visibility: 'PRIVATE',
+          current_version: 1,
+        }
+      })
+
+      await tx.$executeRawUnsafe(
+        `INSERT INTO document_versions (id, document_id, content, version, saved_by, reason, created_at) VALUES (gen_random_uuid(), $1, $2::jsonb, $3, $4, $5::"VersionReason", NOW())`,
+        document.id,
+        JSON.stringify(isReadOnly ? null : []),
+        1,
+        session.user.id,
+        'IMPORTED'
+      )
+    })
+
+    const { logActivity } = await import("@/lib/activity")
+    void logActivity(session.user.id, "DOCUMENT_IMPORTED", {
+      operation: "CREATE",
+      resource_type: "DOCUMENT",
+      resource_id: (document as any).id,
+      resource_label: file.name,
+      source: "Import Modal",
     })
 
     return NextResponse.json({ document, htmlContent: isReadOnly ? null : parsedContent })

@@ -327,6 +327,25 @@ export async function POST(req: Request) {
       console.error("Failed to update search vector:", error)
     }
 
+    const { logActivity } = await import('@/lib/activity')
+    let contextName = undefined
+    if (body.folder_id) {
+      const f = await prisma.folder.findUnique({ where: { id: body.folder_id } })
+      if (f) contextName = f.name
+    } else {
+      const w = await prisma.workspace.findUnique({ where: { id: targetWorkspaceId } })
+      if (w) contextName = w.name
+    }
+
+    void logActivity(session.user.id, "DOCUMENT_CREATED", {
+      operation: "CREATE",
+      resource_type: "DOCUMENT",
+      resource_id: document.id,
+      resource_label: document.title,
+      source: body.source || "Unknown",
+      context: contextName
+    })
+
     return NextResponse.json(document)
   } catch (error) {
     return NextResponse.json({ error: "Failed to create document" }, { status: 500 })

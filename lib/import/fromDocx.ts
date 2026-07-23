@@ -24,7 +24,7 @@ export async function importDocxToBlocks(
     }
   );
 
-  const normalizedHtml = normalizeHtml(result.value);
+  const normalizedHtml = await normalizeHtml(result.value, fileBuffer);
   const blocks = await Promise.resolve(htmlToBlocks(normalizedHtml));
 
   return { normalizedHtml, blocks };

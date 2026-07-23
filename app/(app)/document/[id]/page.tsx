@@ -63,6 +63,7 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
         visibility={doc.visibility}
         type={doc.type}
         workspaceId={doc.workspace_id}
+        folderId={doc.folder_id}
         ownerId={doc.owner_id}
         activePanel={activePanel}
         setActivePanel={setActivePanel}

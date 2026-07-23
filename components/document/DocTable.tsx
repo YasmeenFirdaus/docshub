@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { DocSharePanel } from './DocSharePanel'
+import { DocumentTypeBadge } from './DocumentTypeBadge'
 
 interface DocTableProps {
   rows: DocumentRowData[]
@@ -184,6 +185,7 @@ export function DocTable({ rows, workspaces = [], members = [], showLocation = t
                           <FileText className="w-4 h-4" />
                         </span>
                         <span className="font-semibold text-slate-800 truncate max-w-[220px]">{doc.title}</span>
+                        <DocumentTypeBadge type={doc.type || "EDITABLE"} />
                         {doc.status === 'PUBLISHED' && (
                           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
                         )}

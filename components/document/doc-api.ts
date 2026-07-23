@@ -1,11 +1,36 @@
 import type { DocumentStatus, Person, WorkspaceNode } from "./types";
 
+function getSource() {
+  if (typeof window === 'undefined') return "Unknown";
+  const path = window.location.pathname;
+  if (path === '/' || path === '/all-docs') return "All Docs";
+  if (path.includes('/workspace')) return "Folder";
+  if (path.includes('/document/')) return "Editor";
+  if (path.includes('/admin')) return "System";
+  if (path.includes('/favorites')) return "Favorites";
+  if (path.includes('/recent')) return "Recent";
+  if (path.includes('/trash')) return "Trash";
+  if (path.includes('/shared-with-me')) return "Shared with Me";
+  return "Unknown";
+}
+
 async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
+  let finalInit = { ...init };
+  if (init?.body && typeof init.body === 'string') {
+    try {
+      const parsed = JSON.parse(init.body);
+      if (!parsed.source) {
+        parsed.source = getSource();
+        finalInit.body = JSON.stringify(parsed);
+      }
+    } catch (e) {}
+  }
+
   const response = await fetch(input, {
-    ...init,
+    ...finalInit,
     headers: {
       "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
+      ...(finalInit?.headers ?? {}),
     },
   });
 
@@ -95,7 +120,7 @@ export async function addReviewers(documentId: string, reviewerIds: string[], co
 export async function addContributors(documentId: string, userIds: string[]) {
   return requestJson(`/api/documents/${documentId}/contributors`, {
     method: "POST",
-    body: JSON.stringify({ user_ids: userIds }),
+    body: JSON.stringify({ user_ids: userIds, source: getSource() }),
   });
 }
 

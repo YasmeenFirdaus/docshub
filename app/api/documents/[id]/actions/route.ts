@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateSearchVector } from "@/lib/search";
 import { sendReviewerNotification } from "@/lib/email";
+import { logActivity } from "@/lib/activity";
 
 type DocumentAction =
   | "MOVE"
@@ -23,6 +24,7 @@ type DocumentAction =
 type ActionBody = {
   action?: unknown;
   payload?: unknown;
+  source?: unknown;
 };
 
 type PayloadObject = Record<string, unknown>;
@@ -73,6 +75,10 @@ function activityFor(action: DocumentAction): ActivityType {
     case "REQUEST_REVIEW":
     case "UPDATE_REVIEW_STATUS":
       return ActivityType.REVIEW_REQUESTED;
+    case "RESTORE":
+      return ActivityType.DOCUMENT_RESTORED;
+    case "DUPLICATE":
+      return ActivityType.DOCUMENT_CREATED;
     default:
       return ActivityType.DOCUMENT_EDITED;
   }
@@ -99,7 +105,9 @@ async function loadDocumentContext(documentId: string, userId: string) {
       id: true,
       title: true,
       workspace_id: true,
+      workspace: { select: { name: true } },
       folder_id: true,
+      folder: { select: { name: true } },
       owner_id: true,
       visibility: true,
       workspace_edit: true,
@@ -264,17 +272,15 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "RENAME", title },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: "RENAME",
+              resource_label: title,
+              previous: { title: context.doc.title },
+              current: { title }
+            }
+          };
         }
 
         case "STATUS": {
@@ -305,17 +311,15 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "STATUS", status },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: "STATUS_CHANGE",
+              resource_label: context.doc.title,
+              previous: { status: context.doc.status },
+              current: { status }
+            }
+          };
         }
 
         case "MOVE": {
@@ -331,7 +335,7 @@ export async function POST(
             incomingFolderId
               ? await tx.folder.findUnique({
                 where: { id: incomingFolderId },
-                select: { id: true, workspace_id: true },
+                select: { id: true, name: true, workspace_id: true },
               })
               : null;
 
@@ -377,27 +381,17 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: {
-                action: "MOVE",
-                from: {
-                  workspace_id: context.doc.workspace_id,
-                  folder_id: context.doc.folder_id,
-                },
-                to: {
-                  workspace_id: destinationWorkspaceId,
-                  folder_id: targetFolder?.id ?? null,
-                },
-              },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: "MOVE",
+              resource_label: context.doc.title,
+              location_before: context.doc.folder?.name ?? context.doc.workspace?.name ?? "Unknown",
+              location_after: targetFolder?.name ?? "Unknown",
+              previous: { workspace_id: context.doc.workspace_id, folder_id: context.doc.folder_id },
+              current: { workspace_id: destinationWorkspaceId, folder_id: targetFolder?.id ?? null }
+            }
+          };
         }
 
         case "ARCHIVE": {
@@ -422,17 +416,15 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: nextArchived ? "ARCHIVE" : "UNARCHIVE" },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: nextArchived ? "ARCHIVE" : "UNARCHIVE",
+              resource_label: context.doc.title,
+              previous: { is_archived: context.doc.is_archived },
+              current: { is_archived: nextArchived }
+            }
+          };
         }
 
         case "DUPLICATE": {
@@ -488,17 +480,14 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_CREATED,
-              entity: "document",
-              entity_id: duplicate.id,
-              meta: { action: "DUPLICATE", source_document_id: documentId },
-            },
-          });
-
-          return { document: duplicate };
+          return { 
+            document: duplicate,
+            metaToLog: {
+              operation: "DUPLICATE",
+              resource_label: duplicate.title,
+              previous: { source_document_id: documentId }
+            }
+          };
         }
 
         case "RESTORE": {
@@ -520,17 +509,15 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "RESTORE" },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: "RESTORE",
+              resource_label: context.doc.title,
+              previous: { is_deleted: true },
+              current: { is_deleted: false }
+            }
+          };
         }
 
         case "DELETE": {
@@ -553,17 +540,15 @@ export async function POST(
             },
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_DELETED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "DELETE", soft: true },
-            },
-          });
-
-          return { document: updated };
+          return { 
+            document: updated,
+            metaToLog: {
+              operation: "DELETE",
+              resource_label: context.doc.title,
+              previous: { is_deleted: false },
+              current: { is_deleted: true }
+            }
+          };
         }
 
         case "PERMANENT_DELETE": {
@@ -571,17 +556,13 @@ export async function POST(
             where: { id: documentId }
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_DELETED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "PERMANENT_DELETE" },
-            },
-          });
-
-          return { document: deleted };
+          return { 
+            document: deleted,
+            metaToLog: {
+              operation: "PERMANENT_DELETE",
+              resource_label: context.doc.title
+            }
+          };
         }
 
         case "TOGGLE_FAVORITE": {
@@ -610,17 +591,15 @@ export async function POST(
             favorite = true;
           }
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: { action: "TOGGLE_FAVORITE", favorite },
-            },
-          });
-
-          return { favorite };
+          return { 
+            favorite,
+            metaToLog: {
+              operation: "TOGGLE_FAVORITE",
+              resource_label: context.doc.title,
+              previous: { favorite: !favorite },
+              current: { favorite }
+            }
+          };
         }
 
         case "REQUEST_REVIEW": {
@@ -679,23 +658,17 @@ export async function POST(
               },
             });
 
-            await tx.activityLog.create({
-              data: {
-                user_id: identity.userId,
-                action: ActivityType.REVIEW_REQUESTED,
-                entity: "document",
-                entity_id: documentId,
-                meta: {
-                  action: "REQUEST_REVIEW",
-                  reviewer_id: revId,
-                },
-              },
-            });
-
             createdRequests.push({ request: reviewRequest, duplicate: false });
           }
 
-          return { reviewRequests: createdRequests };
+          return { 
+            reviewRequests: createdRequests,
+            metaToLog: {
+              operation: "REQUEST_REVIEW",
+              resource_label: context.doc.title,
+              current: { reviewer_ids: reviewerIds }
+            }
+          };
         }
 
         case "UPDATE_REVIEW_STATUS": {
@@ -724,7 +697,6 @@ export async function POST(
               data: {
                 document_id: documentId,
                 requested_by: identity.userId,
-                reviewer_id: identity.userId,
                 status: statusRaw as ReviewStatus,
                 reviewed_at: statusRaw === ReviewStatus.PENDING ? null : new Date(),
               },
@@ -741,20 +713,15 @@ export async function POST(
             }
           });
 
-          await tx.activityLog.create({
-            data: {
-              user_id: identity.userId,
-              action: ActivityType.DOCUMENT_EDITED,
-              entity: "document",
-              entity_id: documentId,
-              meta: {
-                action: "UPDATE_REVIEW_STATUS",
-                status: statusRaw,
-              },
-            },
-          });
-
-          return { reviewRequest: updated };
+          return { 
+            reviewRequest: updated,
+            metaToLog: {
+              operation: "UPDATE_REVIEW_STATUS",
+              resource_label: context.doc.title,
+              previous: { status: reviewRequest.status },
+              current: { status: statusRaw }
+            }
+          };
         }
 
         default:
@@ -801,6 +768,19 @@ export async function POST(
           ).catch(() => { })
         }).catch(() => { })
       }
+    }
+
+    if ("metaToLog" in result && result.metaToLog) {
+      void logActivity(identity.userId, activityFor(action), {
+        resource_type: "DOCUMENT",
+        resource_id: documentId,
+        source: asString(body.source) || "Unknown",
+        workspace: context.doc.workspace?.name || undefined,
+        context: context.doc.folder?.name || undefined,
+        ...(result.metaToLog as any),
+      });
+      // Remove metaToLog from the returned result so it doesn't leak to the client
+      delete (result as any).metaToLog;
     }
 
     return NextResponse.json({ ok: true, action, ...result });

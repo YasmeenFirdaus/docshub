@@ -118,11 +118,7 @@ export default function MembersPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-5 lg:p-8">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1E293B]">Organization Members</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage team access, roles, and pending invitations.</p>
-        </div>
+      <div className="mb-6 flex flex-wrap items-start justify-end gap-4">
         {isAdminOrOwner && (
           <button
             type="button"

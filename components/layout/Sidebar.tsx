@@ -21,6 +21,8 @@ import {
   LogOut,
   SidebarClose,
   SidebarOpen,
+  MoreVertical,
+  Activity,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useSidebarStore } from "@/stores/sidebar.store";
@@ -125,6 +127,7 @@ export function Sidebar() {
     workspaces.find((w) => w.id === activeWorkspaceId) ?? workspaces[0] ?? null;
 
   const navItems = [
+    { name: "Dashboard", icon: Activity, href: session?.user?.role === "ADMIN" ? "/admin/dashboard" : "/home" },
     { name: "All Docs", icon: Layers, href: "/all-docs" },
     { name: "Shared with me", icon: Share2, href: "/shared-with-me" },
     { name: "Favorites", icon: Star, href: "/favorites" },
@@ -327,7 +330,7 @@ export function Sidebar() {
                 <Library size={16} />
               </div>
               <span className="ml-3 truncate font-semibold tracking-tight text-[#1E293B]">
-                {tenant?.name || "Enterprise DMS"}
+                {tenant?.name || "DocHub"}
               </span>
             </div>
             <button
@@ -402,6 +405,8 @@ export function Sidebar() {
         )}
       </div>
 
+
+
       <div className={`flex items-center justify-between border-t border-[#E7ECEA]/50 p-4 bg-white/20 backdrop-blur-md ${isCollapsed ? "flex-col gap-3 px-2 py-4" : ""}`}>
         <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
           <div className="flex h-9 w-9 items-center justify-center shrink-0 rounded-full bg-gradient-to-br from-[#78C6C9]/20 to-[#F5F7F6] font-bold text-sm text-[#256D85] shadow-sm border border-[#78C6C9]/30">
@@ -417,15 +422,6 @@ export function Sidebar() {
           )}
         </div>
         <div className={`flex items-center gap-0.5 ${isCollapsed ? "flex-col" : ""}`}>
-          {(session?.user?.role === "ADMIN" || session?.user?.role === "OWNER") && (
-            <Link 
-              href="/settings/members" 
-              className="p-1.5 rounded-lg text-slate-400 hover:text-[#256D85] hover:bg-[#78C6C9]/14 transition-all duration-200"
-              aria-label="Settings"
-            >
-              <Settings size={17} strokeWidth={2} />
-            </Link>
-          )}
           <button
             onClick={() => signOut({ callbackUrl: "/login", redirect: true })}
             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50/80 transition-all duration-200"

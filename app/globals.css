@@ -53,9 +53,12 @@ button,
   -webkit-tap-highlight-color: transparent;
 }
 
-:focus-visible {
-  outline: 2px solid rgba(37, 109, 133, 0.55);
-  outline-offset: 2px;
+:focus,
+:focus-visible,
+:focus-within {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
 }
 
 ::selection {
@@ -148,10 +151,6 @@ button,
 .premium-control:focus,
 .premium-control:focus-visible,
 .premium-control:focus-within {
-  border-color: rgba(37, 109, 133, 0.48);
-  box-shadow:
-    0 0 0 4px rgba(120, 198, 201, 0.18),
-    0 12px 28px rgba(30, 41, 59, 0.06);
   outline: none;
 }
 

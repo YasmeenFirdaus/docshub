@@ -124,16 +124,17 @@ export async function POST(req: NextRequest, { params }: Params) {
         })
       }
       
-      await tx.activityLog.create({
-        data: {
-          user_id: session.user.id,
-          action: 'DOCUMENT_SHARED',
-          entity: 'document',
-          entity_id: params.id,
-          meta: { shared_with: sharedWith, permission }
-        }
-      })
     });
+    
+    const { logActivity } = await import('@/lib/activity')
+    void logActivity(session.user.id, 'DOCUMENT_SHARED', {
+      operation: 'SHARE',
+      resource_type: 'DOCUMENT',
+      resource_id: document.id,
+      resource_label: document.title || 'Untitled Document',
+      source: body.source || 'Share Modal',
+      current: { shared_with: sharedWith, permission }
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to share document'
     const status = message.includes('workspace members') ? 400 : 500
@@ -196,7 +197,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const document = await prisma.document.findUnique({
     where: { id: params.id },
-    select: { owner_id: true },
+    select: { id: true, title: true, owner_id: true },
   })
   if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
 
@@ -204,9 +205,19 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { user_id } = await req.json()
+  const { user_id, source } = await req.json()
   await prisma.documentShare.deleteMany({
     where: { document_id: params.id, shared_with: user_id },
+  })
+  
+  const { logActivity } = await import('@/lib/activity')
+  void logActivity(session.user.id, 'DOCUMENT_SHARED', {
+    operation: 'REVOKE_SHARE',
+    resource_type: 'DOCUMENT',
+    resource_id: document.id,
+    resource_label: document.title || 'Untitled Document',
+    source: source || 'Share Modal',
+    previous: { shared_with: [user_id] }
   })
 
   try {

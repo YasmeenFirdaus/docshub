@@ -1,1 +1,0 @@
-const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { const result = await prisma.$queryRawUnsafe('SELECT id, title, search_vector::text FROM documents LIMIT 1'); console.log(result); } main().finally(() => prisma.$disconnect());
