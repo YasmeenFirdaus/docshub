@@ -24,11 +24,13 @@ export function DocumentStatusCell({
   status,
   workspaceEdit,
   onChange,
+  disabled,
 }: {
   documentId: string;
   status: DocumentStatus;
   workspaceEdit: boolean;
-  onChange: (documentId: string, nextStatus: DocumentStatus, nextWorkspaceEdit: boolean) => Promise<void> | void;
+  onChange?: (documentId: string, nextStatus: DocumentStatus, nextWorkspaceEdit: boolean) => Promise<void> | void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [currentStatus, setCurrentStatus] = React.useState<DocumentStatus>(status);
@@ -41,6 +43,19 @@ export function DocumentStatusCell({
 
   const currentOption =
     STATUS_OPTIONS.find((item) => item.status === currentStatus && (currentStatus !== "PUBLISHED" || item.workspaceEdit === currentEdit)) ?? STATUS_OPTIONS[0];
+
+  if (disabled) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        disabled
+        className={cn("h-8 gap-1.5 rounded-full px-3 text-xs font-medium opacity-70", currentOption.className)}
+      >
+        {currentOption.label}
+      </Button>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -78,7 +93,9 @@ export function DocumentStatusCell({
                     setOpen(false);
 
                     try {
-                      await Promise.resolve(onChange(documentId, option.status, option.workspaceEdit));
+                      if (onChange) {
+                        await Promise.resolve(onChange(documentId, option.status, option.workspaceEdit));
+                      }
                     } catch {
                       setCurrentStatus(prevStatus);
                       setCurrentEdit(prevEdit);

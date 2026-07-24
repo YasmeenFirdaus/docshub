@@ -15,8 +15,8 @@ export async function POST(req: Request) {
     const { email, role, workspace_id } = await req.json();
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 });
+    if (existingUser && existingUser.status === "ACTIVE") {
+      return NextResponse.json({ error: "User already exists and is active" }, { status: 400 });
     }
 
     const existingInvite = await prisma.invitation.findFirst({

@@ -20,14 +20,24 @@ export async function canAccessDocument(documentId: string, userId: string) {
   if (!document) return null
 
   const isOwner = document.owner_id === userId
-  const isMember = document.workspace.members.some((m: any) => m.user_id === userId)
-  const isShared = document.shares.some((s: any) => s.shared_with === userId)
+  const memberObj = document.workspace.members.find((m: any) => m.user_id === userId)
+  const isMember = !!memberObj
+  const isWorkspaceAdmin = memberObj?.role === "ADMIN"
+
+  const explicitShare = document.shares.find((s: any) => s.shared_with === userId)
+  
   const contributors = await prisma.$queryRaw<Array<{ user_id: string }>>`
     SELECT user_id FROM document_contributors WHERE document_id = ${documentId}
   `
   const isContributor = contributors.some((c: any) => c.user_id === userId)
 
-  if (!isOwner && !isMember && !isShared && !isContributor) return null
+  const isPublished = document.visibility === "PUBLISHED"
+  
+  const canRead = isOwner || (isPublished && isMember) || !!explicitShare || isContributor
+  
+  const canEdit = isOwner || isWorkspaceAdmin || (explicitShare?.permission === "EDIT") || (isPublished && document.workspace_edit && isMember)
+
+  if (!canRead) return null
 
   // Fetch content separately to avoid Prisma JSON recursion limit
   const rawData: any[] = await prisma.$queryRawUnsafe(
@@ -45,7 +55,7 @@ export async function canAccessDocument(documentId: string, userId: string) {
     (document as any).content = []
   }
 
-  return { ...document, contributors }
+  return { ...document, contributors, canRead, canEdit }
 }
 
 export async function updateDocumentContent(

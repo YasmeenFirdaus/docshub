@@ -26,10 +26,14 @@ export async function GET(req: Request) {
 
     const memberships = await prisma.workspaceMember.findMany({
       where: { user_id: session.user.id },
-      select: { workspace_id: true },
+      select: { workspace_id: true, role: true },
     })
 
     const workspaceIds = memberships.map((m) => m.workspace_id)
+    const workspaceRoles = memberships.reduce((acc, m) => {
+      acc[m.workspace_id] = m.role
+      return acc
+    }, {} as Record<string, string>)
     const contributedDocuments = await prisma.$queryRaw<Array<{ document_id: string }>>`
       SELECT document_id FROM document_contributors WHERE user_id = ${session.user.id}
     `
@@ -260,10 +264,24 @@ export async function GET(req: Request) {
 
     let formattedDocuments = documents.map(doc => {
       const is_favorite = doc.favorites && doc.favorites.length > 0;
+      const isOwner = doc.owner_id === session.user.id;
+      const isWorkspaceAdmin = workspaceRoles[doc.workspace_id] === "ADMIN";
+      const isContributor = contributedDocumentIds.includes(doc.id);
+      const explicitShare = doc.shares.find((s) => s.user.id === session.user.id);
+      const isWorkspaceMember = !!workspaceRoles[doc.workspace_id];
+
+      const canEdit =
+        isOwner ||
+        isWorkspaceAdmin ||
+        isContributor ||
+        (doc.visibility === "WORKSPACE" && doc.workspace_edit && isWorkspaceMember) ||
+        explicitShare?.permission === "EDIT";
+
       return {
         ...doc,
         contributors: contributorsByDocument[doc.id] ?? [],
         is_favorite,
+        canEdit,
         snippet: ftsSnippets[doc.id] || ""
       }
     })

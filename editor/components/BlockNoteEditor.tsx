@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from "react"
-import { Sparkles } from "lucide-react"
+import { Sparkles, AlertCircle } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { 
   useCreateBlockNote, 
   SuggestionMenuController, 
@@ -50,7 +52,7 @@ interface BlockNoteEditorProps {
 }
 
 export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSaveStatusChange }: BlockNoteEditorProps) {
-  const { title, setTitle, setContent, saveStatus } = useBlockNoteAutosave(documentId, initialTitle)
+  const { title, setTitle, setContent, saveStatus, permissionError, setPermissionError } = useBlockNoteAutosave(documentId, initialTitle)
 
   const setInlineSelection = useAIStore((s) => s.setInlineSelection)
   const openDocumentPanel = useAIStore((s) => s.openDocumentPanel)
@@ -64,10 +66,19 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
     onApply?: (nextText: string) => void
   } | null>(null)
 
+
   // 1. INITIALIZE EDITOR WITH CONTENT FROM DB
   const editor = useCreateBlockNote({
     schema,
     initialContent: initialContent && initialContent.length > 0 ? initialContent : undefined,
+    uploadFile: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      return url;
+    },
   })
 
   // 2. BUBBLE SAVE STATUS
@@ -92,7 +103,7 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
   return (
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-4 py-8 sm:px-12 lg:px-16 relative">
       {/* Title */}
-      <div className="mb-6 flex flex-col gap-2 px-12">
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-sm pt-4 pb-4 mb-2 flex flex-col gap-2 px-12">
         <input
           type="text"
           value={title}
@@ -102,7 +113,7 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
         />
       </div>
 
-      <div ref={containerRef} className="flex-1 cursor-text relative">
+      <div ref={containerRef} className="flex-1 cursor-text relative pb-12">
         <BlockNoteView
           editor={editor}
           theme="light"
@@ -183,6 +194,23 @@ export function BlockNoteEditor({ documentId, initialTitle, initialContent, onSa
           }}
         />
       </div>
+
+      <Dialog open={permissionError} onOpenChange={setPermissionError}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <AlertCircle size={20} />
+              Permission Denied
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-slate-600">
+              You do not have permission to save changes to this document. Any modifications you make will not be saved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setPermissionError(false)}>Understood</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

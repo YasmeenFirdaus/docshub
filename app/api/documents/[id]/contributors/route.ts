@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { randomUUID } from 'crypto'
 
 import { authOptions } from '@/lib/auth'
+import { canAccessDocument } from '@/lib/document'
 import { prisma } from '@/lib/prisma'
 import { updateSearchVector } from '@/lib/search'
 
@@ -13,50 +14,14 @@ function normalizeUserIds(value: unknown) {
   return Array.from(new Set(value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim())))
 }
 
-async function getDocumentAccess(documentId: string, userId: string, role?: string) {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: {
-      id: true,
-      workspace_id: true,
-      owner_id: true,
-      visibility: true,
-      workspace_edit: true,
-    },
-  })
-
-  if (!document) return null
-
-  const [workspaceMember, share, contributor] = await Promise.all([
-    prisma.workspaceMember.findFirst({
-      where: { workspace_id: document.workspace_id, user_id: userId },
-      select: { role: true },
-    }),
-    prisma.documentShare.findFirst({
-      where: { document_id: document.id, shared_with: userId },
-      select: { permission: true },
-    }),
-    prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM document_contributors
-      WHERE document_id = ${document.id} AND user_id = ${userId}
-      LIMIT 1
-    `,
-  ])
-
-  const canEdit =
-    document.owner_id === userId ||
-    role === 'ADMIN' ||
-    workspaceMember?.role === 'ADMIN' ||
-    contributor.length > 0 ||
-    (document.visibility === 'WORKSPACE' && document.workspace_edit && Boolean(workspaceMember)) ||
-    share?.permission === 'EDIT'
-
-  return { document, canEdit }
-}
-
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const documentContext = await canAccessDocument(params.id, session.user.id)
+  if (!documentContext || !documentContext.canEdit) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const contributors = await prisma.$queryRaw<Array<{
     id: string
@@ -93,17 +58,17 @@ export async function POST(req: NextRequest, { params }: Params) {
   const userIds = normalizeUserIds(body?.user_ids)
   if (!userIds) return NextResponse.json({ error: 'user_ids must be an array' }, { status: 400 })
 
-  const access = await getDocumentAccess(params.id, session.user.id, session.user.role)
+  const access = await canAccessDocument(params.id, session.user.id)
   if (!access) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
   if (!access.canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  if (userIds.includes(access.document.owner_id)) {
+  if (userIds.includes(access.owner_id)) {
     return NextResponse.json({ error: 'Owner is already a contributor' }, { status: 400 })
   }
 
   const memberCount = userIds.length
     ? await prisma.workspaceMember.count({
         where: {
-          workspace_id: access.document.workspace_id,
+          workspace_id: access.workspace_id,
           user_id: { in: userIds },
         },
       })

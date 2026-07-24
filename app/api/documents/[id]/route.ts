@@ -26,8 +26,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const document = await canAccessDocument(params.id, session.user.id)
-    if (!document) {
+    if (!document || !document.canRead) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    if (!document.canEdit) {
+      return NextResponse.json({ error: "Forbidden: View Only" }, { status: 403 })
     }
 
     const body = await req.json()

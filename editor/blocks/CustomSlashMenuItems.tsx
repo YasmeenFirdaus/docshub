@@ -1,6 +1,6 @@
 import { BlockNoteEditor, PartialBlock, filterSuggestionItems } from "@blocknote/core";
 import { DefaultReactSuggestionItem } from "@blocknote/react";
-import { MessageSquareWarning, Code2, Video, Sparkles, PencilLine, FileText, Wand2, SpellCheck2 } from "lucide-react";
+import { MessageSquareWarning, Code2, Video, Sparkles, PencilLine, FileText, Wand2, SpellCheck2, Paperclip } from "lucide-react";
 import React from "react";
 
 // Helper to insert a block
@@ -20,6 +20,7 @@ export const getCustomSlashMenuItems = (editor: any): DefaultReactSuggestionItem
     icon: <MessageSquareWarning size={18} />,
     group: "Advanced",
   },
+
   {
     title: "Mermaid Diagram",
     subtext: "Render diagrams from text",

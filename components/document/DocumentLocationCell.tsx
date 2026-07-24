@@ -55,6 +55,7 @@ export function DocumentLocationCell({
   folderName,
   workspaces,
   onMove,
+  disabled,
 }: {
   documentId: string;
   workspaceId: string;
@@ -62,7 +63,8 @@ export function DocumentLocationCell({
   folderId: string | null;
   folderName: string | null;
   workspaces: WorkspaceNode[];
-  onMove: (documentId: string, next: LocationSelection) => Promise<void> | void;
+  onMove?: (documentId: string, next: LocationSelection) => Promise<void> | void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [currentWorkspaceId, setCurrentWorkspaceId] = React.useState(workspaceId);
@@ -106,6 +108,19 @@ export function DocumentLocationCell({
       kind: "folder" as const,
     }));
   }, [activeWorkspace]);
+
+  if (disabled) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        disabled
+        className="h-8 max-w-[260px] justify-start gap-1 rounded-md px-2 text-left text-sm font-medium opacity-70"
+      >
+        <span className="truncate">{currentPath}</span>
+      </Button>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -153,7 +168,9 @@ export function DocumentLocationCell({
                     setOpen(false);
 
                     try {
-                      await Promise.resolve(onMove(documentId, next));
+                      if (onMove) {
+                        await Promise.resolve(onMove(documentId, next));
+                      }
                     } catch {
                       setCurrentWorkspaceId(previous.workspaceId);
                       setCurrentWorkspaceName(previous.workspaceName);
@@ -195,7 +212,9 @@ export function DocumentLocationCell({
                     setOpen(false);
 
                     try {
-                      await Promise.resolve(onMove(documentId, next));
+                      if (onMove) {
+                        await Promise.resolve(onMove(documentId, next));
+                      }
                     } catch {
                       setCurrentWorkspaceId(previous.workspaceId);
                       setCurrentWorkspaceName(previous.workspaceName);
