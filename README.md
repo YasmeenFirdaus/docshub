@@ -39,6 +39,10 @@ Generate the Prisma client and push the schema to the database:
 npx prisma generate
 npx prisma db push
 ```
+Seed the database with initial data (optional but recommended):
+```bash
+npx tsx prisma/seed.ts
+```
 
 ### 2. Next.js Web Application
 Install the Node dependencies:
