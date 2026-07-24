@@ -31,7 +31,7 @@ export async function canAccessDocument(documentId: string, userId: string) {
   `
   const isContributor = contributors.some((c: any) => c.user_id === userId)
 
-  const isPublished = document.visibility === "PUBLISHED"
+  const isPublished = document.status === "PUBLISHED"
   
   const canRead = isOwner || (isPublished && isMember) || !!explicitShare || isContributor
   
