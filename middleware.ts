@@ -10,7 +10,7 @@ export default withAuth(
     if (path.startsWith('/admin') && token?.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/home', req.url))
     }
-    
+
     // Role-based redirects for authenticated users hitting root
     if (path === '/') {
       if (token?.role === 'ADMIN') {
@@ -33,7 +33,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: [
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|uploads|images|icons|robots.txt|sitemap.xml).*)',
-  ],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
 }

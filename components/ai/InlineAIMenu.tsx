@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import { Check, Copy, Sparkles, X } from 'lucide-react'
 import { InlineSelection } from '@/stores/ai.store'
 
@@ -20,6 +20,39 @@ const ACTIONS = [
 export function InlineAIMenu({ selection, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState('')
+  const [positionBelow, setPositionBelow] = useState(false)
+  const [adjustedLeft, setAdjustedLeft] = useState(selection?.x ?? 0)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!menuRef.current || !selection) return
+
+    const menuWidth = 340
+    const margin = 16
+    let left = selection.x
+    if (left - menuWidth / 2 < margin) {
+      left = menuWidth / 2 + margin
+    }
+    if (left + menuWidth / 2 > window.innerWidth - margin) {
+      left = window.innerWidth - menuWidth / 2 - margin
+    }
+    setAdjustedLeft(left)
+
+    const menuHeight = menuRef.current.offsetHeight
+    const headerHeight = 80 // Header safety margin
+    const goesIntoHeader = (selection.y - menuHeight) < headerHeight
+    const fitsBelow = (selection.y + 24 + menuHeight) < window.innerHeight
+
+    if (goesIntoHeader && fitsBelow) {
+      setPositionBelow(true)
+    } else {
+      setPositionBelow(false)
+    }
+  }, [selection, result, loading])
+
+  const reject = () => {
+    setResult('')
+  }
 
   if (!selection) return null
 
@@ -61,8 +94,13 @@ export function InlineAIMenu({ selection, onClose }: Props) {
 
   return (
     <div
+      ref={menuRef}
       className="fixed z-[80] w-[340px] rounded-2xl border border-slate-200 bg-white shadow-2xl"
-      style={{ left: selection.x, top: selection.y, transform: 'translate(-50%, -100%)' }}
+      style={{
+        left: adjustedLeft,
+        top: positionBelow ? selection.y + 24 : selection.y - 12,
+        transform: positionBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)'
+      }}
     >
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
@@ -114,6 +152,14 @@ export function InlineAIMenu({ selection, onClose }: Props) {
             >
               <Copy className="h-3.5 w-3.5" />
               Copy
+            </button>
+            <button
+              type="button"
+              onClick={reject}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              <X className="h-3.5 w-3.5" />
+              Reject
             </button>
           </div>
         </div>

@@ -448,7 +448,7 @@ export default function WorkspacePage() {
         />
       )}
 
-      {showImport && <ImportModal onClose={() => setShowImport(false)} onSuccess={fetchDocs} />}
+      {showImport && <ImportModal workspaceId={wid} onClose={() => setShowImport(false)} onSuccess={fetchDocs} />}
     </div>
   );
 }
