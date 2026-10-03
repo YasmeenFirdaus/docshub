@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Layers } from "lucide-react"
+import { Layers, Eye, EyeOff } from "lucide-react"
 
 function InviteAcceptForm() {
   const router = useRouter()
@@ -11,6 +11,7 @@ function InviteAcceptForm() {
 
   const [name, setName] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -55,13 +56,23 @@ function InviteAcceptForm() {
       </div>
       <div>
         <label className="block text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Set Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-[#78C6C9]"
-          required
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 rounded-lg bg-slate-50 border border-slate-200 focus:ring-1 focus:ring-[#78C6C9] pr-10"
+            required
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            onClick={() => setShowPassword(!showPassword)}
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
       <button
         type="submit"

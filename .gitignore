@@ -44,3 +44,6 @@ next-env.d.ts
 # prisma local databases (if you ever test with sqlite)
 *.db
 *.db-journal
+
+# uploaded documents
+public/uploads/

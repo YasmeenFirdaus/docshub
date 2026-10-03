@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   Layers,
   Share2,
@@ -225,16 +226,25 @@ export function Sidebar() {
     return currentLevelFolders.map((folder) => {
       const hasChildren = folders.some((f) => f.parent_id === folder.id);
       const isExpanded = expandedFolders.has(folder.id);
+      const isActive = pathname === `/workspace/${workspaceId}/folder/${folder.id}`;
 
       return (
         <div key={folder.id} className="relative">
           <div
-            className="group relative flex cursor-pointer items-center rounded-lg py-1.5 pr-2 text-[#256D85] transition-all hover:bg-[#FAFAF9]/80 hover:text-[#256D85] hover:shadow-sm"
+            className={cn(
+              "group relative flex cursor-pointer items-center rounded-lg py-1.5 pr-2 transition-all",
+              isActive 
+                ? "arctic-primary text-white shadow-sm" 
+                : "text-[#256D85] hover:bg-[#FAFAF9]/80 hover:text-[#256D85] hover:shadow-sm"
+            )}
             style={{ paddingLeft: `${depth * 10 + 10}px` }}
+            aria-current={isActive ? "page" : undefined}
           >
             <button
               type="button"
-              className="mr-1 flex h-5 w-5 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              className={`mr-1 flex h-5 w-5 items-center justify-center rounded-md transition ${
+                isActive ? "text-white/80 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              }`}
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasChildren) toggleFolder(folder.id);
@@ -254,7 +264,7 @@ export function Sidebar() {
               className="flex min-w-0 flex-1 items-center text-left"
               onClick={() => router.push(`/workspace/${workspaceId}/folder/${folder.id}`)}
             >
-              <Folder size={15} className="mr-2 shrink-0 text-slate-400" />
+              <Folder size={15} className={`mr-2 shrink-0 ${isActive ? "text-white/90" : "text-slate-400"}`} />
               <span className="flex-1 truncate text-[13px] font-medium">{folder.name}</span>
             </button>
 
@@ -264,7 +274,9 @@ export function Sidebar() {
                 e.stopPropagation();
                 setActiveMenu(activeMenu === folder.id ? null : folder.id);
               }}
-              className="rounded-md p-1 text-slate-400 opacity-0 transition-all hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
+              className={`rounded-md p-1 transition-all opacity-0 group-hover:opacity-100 ${
+                isActive ? "text-white/80 hover:bg-white/20 hover:text-white" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              }`}
             >
               <MoreHorizontal size={14} />
             </button>

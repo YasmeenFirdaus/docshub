@@ -38,4 +38,5 @@ export type DocumentRowData = {
   reviewers: Person[];
   review_status?: string | null;
   type?: string;
+  canEdit: boolean;
 };

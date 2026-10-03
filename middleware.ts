@@ -10,7 +10,7 @@ export default withAuth(
     if (path.startsWith('/admin') && token?.role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/home', req.url))
     }
-    
+
     // Role-based redirects for authenticated users hitting root
     if (path === '/') {
       if (token?.role === 'ADMIN') {

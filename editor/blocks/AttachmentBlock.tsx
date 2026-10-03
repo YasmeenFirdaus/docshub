@@ -1,7 +1,7 @@
 import { createReactBlockSpec } from '@blocknote/react';
 import { defaultProps } from '@blocknote/core';
-import { FileIcon, ExternalLinkIcon, DownloadIcon, TrashIcon, LinkIcon } from 'lucide-react';
-import React from 'react';
+import { FileIcon, ExternalLinkIcon, DownloadIcon, TrashIcon, LinkIcon, UploadIcon, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
 
 // Props matching our Attachment block design
 export const AttachmentBlock = createReactBlockSpec(
@@ -21,8 +21,62 @@ export const AttachmentBlock = createReactBlockSpec(
   {
     render: (props) => {
       const { url, filename, original_filename, size, mime } = props.block.props;
+      const [isUploading, setIsUploading] = useState(false);
+
+      const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsUploading(true);
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          if (!res.ok) throw new Error("Upload failed");
+          const data = await res.json();
+          
+          props.editor.updateBlock(props.block, {
+            type: "attachment",
+            props: {
+              url: data.url,
+              filename: data.url.split('/').pop() || file.name,
+              original_filename: file.name,
+              size: data.sizeBytes,
+              mime: data.mimeType,
+            }
+          });
+        } catch (err) {
+          console.error(err);
+          alert("Upload failed");
+        } finally {
+          setIsUploading(false);
+        }
+      };
+
+      if (!url) {
+        return (
+          <div className="my-4 relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card p-8 text-center shadow-sm transition-all hover:bg-muted/50">
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="text-sm font-medium">Uploading...</span>
+              </div>
+            ) : (
+              <>
+                <UploadIcon size={24} className="text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Click to select a file</span>
+                <input 
+                  type="file" 
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  onChange={handleUpload}
+                />
+              </>
+            )}
+          </div>
+        );
+      }
+
       const displayFilename = original_filename || filename;
-      
       const tokenizedUrl = url;
       
       const formatSize = (bytes: number) => {

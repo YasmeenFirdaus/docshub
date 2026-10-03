@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { canAccessDocument } from '@/lib/document'
 import { prisma } from '@/lib/prisma'
 import { updateSearchVector } from '@/lib/search'
 import { sendShareNotification } from '@/lib/email'
@@ -36,50 +37,24 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'shared_with must be an array of user IDs' }, { status: 400 })
   }
 
-  const document = await prisma.document.findUnique({ where: { id: params.id } })
-  if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
-  if (sharedWith.includes(document.owner_id)) {
-    return NextResponse.json({ error: 'Owner already has access' }, { status: 400 })
-  }
-
-  const [workspaceMember, documentShare, contributor] = await Promise.all([
-    prisma.workspaceMember.findFirst({
-      where: { workspace_id: document.workspace_id, user_id: session.user.id },
-      select: { role: true },
-    }),
-    prisma.documentShare.findFirst({
-      where: { document_id: params.id, shared_with: session.user.id },
-      select: { permission: true },
-    }),
-    prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM document_contributors
-      WHERE document_id = ${params.id} AND user_id = ${session.user.id}
-      LIMIT 1
-    `,
-  ])
-
-  const canEditShares =
-    document.owner_id === session.user.id ||
-    session.user.role === 'ADMIN' ||
-    workspaceMember?.role === 'ADMIN' ||
-    contributor.length > 0 ||
-    (document.visibility === 'WORKSPACE' && document.workspace_edit && Boolean(workspaceMember)) ||
-    documentShare?.permission === 'EDIT'
-
-  if (!canEditShares) {
+  const documentContext = await canAccessDocument(params.id, session.user.id)
+  if (!documentContext || !documentContext.canEdit) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (sharedWith.includes(documentContext.owner_id)) {
+    return NextResponse.json({ error: 'Owner already has access' }, { status: 400 })
   }
 
   try {
     await prisma.$transaction(async (tx) => {
-    const memberCount = sharedWith.length
-      ? await tx.workspaceMember.count({
-          where: {
-            workspace_id: document.workspace_id,
-            user_id: { in: sharedWith },
-          },
-        })
-      : 0
+      const memberCount = sharedWith.length
+        ? await tx.workspaceMember.count({
+            where: {
+              workspace_id: documentContext.workspace_id,
+              user_id: { in: sharedWith },
+            },
+          })
+        : 0
 
     if (memberCount !== sharedWith.length) {
       throw new Error('One or more users are not workspace members')
@@ -130,8 +105,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     void logActivity(session.user.id, 'DOCUMENT_SHARED', {
       operation: 'SHARE',
       resource_type: 'DOCUMENT',
-      resource_id: document.id,
-      resource_label: document.title || 'Untitled Document',
+      resource_id: documentContext.id,
+      resource_label: documentContext.title || 'Untitled Document',
       source: body.source || 'Share Modal',
       current: { shared_with: sharedWith, permission }
     })
@@ -182,6 +157,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const documentContext = await canAccessDocument(params.id, session.user.id)
+  if (!documentContext || !documentContext.canRead) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const shares = await prisma.documentShare.findMany({
     where: { document_id: params.id },
     include: { user: { select: { id: true, name: true, email: true, avatar_url: true } } },
@@ -195,13 +175,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const document = await prisma.document.findUnique({
-    where: { id: params.id },
-    select: { id: true, title: true, owner_id: true },
-  })
-  if (!document) return NextResponse.json({ error: 'Document not found' }, { status: 404 })
-
-  if (document.owner_id !== session.user.id && session.user.role !== 'ADMIN') {
+  const documentContext = await canAccessDocument(params.id, session.user.id)
+  if (!documentContext || !documentContext.canEdit) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -214,8 +189,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   void logActivity(session.user.id, 'DOCUMENT_SHARED', {
     operation: 'REVOKE_SHARE',
     resource_type: 'DOCUMENT',
-    resource_id: document.id,
-    resource_label: document.title || 'Untitled Document',
+    resource_id: documentContext.id,
+    resource_label: documentContext.title || 'Untitled Document',
     source: source || 'Share Modal',
     previous: { shared_with: [user_id] }
   })

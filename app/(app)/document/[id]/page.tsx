@@ -51,10 +51,10 @@ export default function DocumentPage({ params }: { params: { id: string } }) {
     </div>
   )
 
-  const locationPath = doc.workspace ? `${doc.workspace.name} ${doc.folder ? `/ ${doc.folder.name}` : ''}` : 'Private'
+  const locationPath = doc.location_path || (doc.workspace ? `${doc.workspace.name} ${doc.folder ? `/ ${doc.folder.name}` : ''}` : 'Private')
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-slate-100">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-slate-100">
       <EditorHeader 
         documentId={doc.id}
         title={doc.title} 

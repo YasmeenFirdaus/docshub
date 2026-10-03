@@ -128,9 +128,9 @@ export function DocTable({ rows, workspaces = [], members = [], showLocation = t
                 <th className="text-left px-4 py-2 font-semibold min-w-[150px]">Reviewer</th>
                 <th className="text-left px-4 py-2 font-semibold min-w-[150px]">Contributors</th>
                 <th className="text-left px-4 py-2 font-semibold min-w-[150px]">Sharing</th>
+                <th className="text-left px-4 py-2 font-semibold min-w-[150px]">Owner</th>
                 <th className="text-left px-4 py-2 font-semibold min-w-[120px]">Created</th>
                 <th className="text-left px-4 py-2 font-semibold min-w-[120px]">Updated</th>
-                <th className="text-left px-4 py-2 font-semibold min-w-[120px]">Viewed</th>
                 <th className="px-4 py-2 w-10"></th>
               </tr>
             </thead>
@@ -292,6 +292,16 @@ export function DocTable({ rows, workspaces = [], members = [], showLocation = t
                     <SharingButton sharing={doc.sharing} onClick={() => setShareDoc(doc)} />
                   </td>
 
+                  {/* Owner */}
+                  <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-[#78C6C9]/18 border border-[#78C6C9]/30 text-[#256D85] text-[10px] font-semibold flex items-center justify-center uppercase shrink-0">
+                        {doc.owner_name ? doc.owner_name[0] : 'U'}
+                      </div>
+                      <span className="truncate">{doc.owner_name}</span>
+                    </div>
+                  </td>
+
                   {/* Created */}
                   <td className="px-4 py-3 text-slate-400 text-xs">
                     {doc.created_at_label}
@@ -300,11 +310,6 @@ export function DocTable({ rows, workspaces = [], members = [], showLocation = t
                   {/* Updated */}
                   <td className="px-4 py-3 text-slate-400 text-xs">
                     {doc.updated_at_label}
-                  </td>
-
-                  {/* Viewed (Placeholder) */}
-                  <td className="px-4 py-3 text-slate-400 text-xs">
-                    —
                   </td>
 
                   {/* Actions */}
@@ -337,8 +342,6 @@ export function DocTable({ rows, workspaces = [], members = [], showLocation = t
                               <MenuItem icon={<Users className="w-3.5 h-3.5" />} label="Share"
                                 onClick={() => { setShareDoc(doc); setContextDoc(null) }} />
                               <div className="border-t border-slate-100 my-1" />
-                              <MenuItem icon={<Archive className="w-3.5 h-3.5" />} label="Archive"
-                                onClick={() => runAction(doc, 'ARCHIVE')} />
                               <MenuItem icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete"
                                 onClick={() => runAction(doc, 'DELETE')} danger />
                             </>

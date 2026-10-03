@@ -43,6 +43,7 @@ export function DocumentPeopleCell({
   selectablePeople,
   onUpdateContributors,
   onUpdateReviewers,
+  disabled,
 }: {
   documentId: string;
   mode: Mode;
@@ -50,6 +51,7 @@ export function DocumentPeopleCell({
   selectablePeople: Person[];
   onUpdateContributors?: (documentId: string, userIds: string[]) => Promise<void> | void;
   onUpdateReviewers?: (documentId: string, userIds: string[]) => Promise<void> | void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -87,8 +89,9 @@ export function DocumentPeopleCell({
         <Button
           type="button"
           variant="ghost"
-          className="h-8 gap-1 rounded-md px-2 text-sm"
-          onClick={() => setOpen(true)}
+          disabled={disabled}
+          className={cn("h-8 gap-1 rounded-md px-2 text-sm", disabled && "opacity-70")}
+          onClick={() => !disabled && setOpen(true)}
         >
           <Icon className="h-4 w-4" />
           <span className="truncate">{triggerLabel}</span>

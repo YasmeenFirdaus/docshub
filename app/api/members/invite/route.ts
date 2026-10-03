@@ -15,8 +15,8 @@ export async function POST(req: Request) {
     const { email, role, workspace_id } = await req.json();
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 });
+    if (existingUser && existingUser.status === "ACTIVE") {
+      return NextResponse.json({ error: "User already exists and is active" }, { status: 400 });
     }
 
     const existingInvite = await prisma.invitation.findFirst({
@@ -66,7 +66,13 @@ export async function POST(req: Request) {
       },
     });
 
-    const inviteUrl = `${process.env.NEXTAUTH_URL}/invite/accept?token=${token}`;
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+    const proto = req.headers.get("x-forwarded-proto") || (host?.includes("localhost") ? "http" : "https");
+    const baseUrl = (process.env.NEXTAUTH_URL && !process.env.NEXTAUTH_URL.includes("localhost"))
+      ? process.env.NEXTAUTH_URL
+      : (host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL || "http://localhost:3000"));
+
+    const inviteUrl = `${baseUrl}/invite/accept?token=${token}`;
 
     await MailService.send("invite", email, {
       invite_url: inviteUrl,

@@ -10,6 +10,7 @@ export async function canAccessDocument(documentId: string, userId: string) {
       workspace: {
         include: {
           members: true,
+          tenant: true,
         },
       },
       folder: true,
@@ -20,14 +21,24 @@ export async function canAccessDocument(documentId: string, userId: string) {
   if (!document) return null
 
   const isOwner = document.owner_id === userId
-  const isMember = document.workspace.members.some((m: any) => m.user_id === userId)
-  const isShared = document.shares.some((s: any) => s.shared_with === userId)
+  const memberObj = document.workspace.members.find((m: any) => m.user_id === userId)
+  const isMember = !!memberObj
+  const isWorkspaceAdmin = memberObj?.role === "ADMIN"
+
+  const explicitShare = document.shares.find((s: any) => s.shared_with === userId)
+  
   const contributors = await prisma.$queryRaw<Array<{ user_id: string }>>`
     SELECT user_id FROM document_contributors WHERE document_id = ${documentId}
   `
   const isContributor = contributors.some((c: any) => c.user_id === userId)
 
-  if (!isOwner && !isMember && !isShared && !isContributor) return null
+  const isPublished = document.status === "PUBLISHED"
+  
+  const canRead = isOwner || (isPublished && isMember) || !!explicitShare || isContributor
+  
+  const canEdit = isOwner || isWorkspaceAdmin || (explicitShare?.permission === "EDIT") || (isPublished && document.workspace_edit && isMember)
+
+  if (!canRead) return null
 
   // Fetch content separately to avoid Prisma JSON recursion limit
   const rawData: any[] = await prisma.$queryRawUnsafe(
@@ -44,8 +55,36 @@ export async function canAccessDocument(documentId: string, userId: string) {
   } else {
     (document as any).content = []
   }
+  let locationPath = "Private"
+  if (document.workspace) {
+    const parts: string[] = []
+    if ((document.workspace as any).tenant) {
+      parts.push((document.workspace as any).tenant.name)
+    }
+    parts.push(document.workspace.name)
 
-  return { ...document, contributors }
+    if (document.folder) {
+      const folderParts: string[] = []
+      let currentFolder: any = document.folder
+      folderParts.unshift(currentFolder.name)
+      let depth = 0
+      // ponytail: O(depth) sequential database queries to trace parent folder hierarchy. Ceiling is folder depth; upgrade path is raw recursive CTE if depth > 10.
+      while (currentFolder.parent_id && depth < 50) {
+        depth++
+        const parentFolder = await prisma.folder.findUnique({
+          where: { id: currentFolder.parent_id },
+          select: { id: true, name: true, parent_id: true }
+        })
+        if (!parentFolder) break
+        folderParts.unshift(parentFolder.name)
+        currentFolder = parentFolder
+      }
+      parts.push(...folderParts)
+    }
+    locationPath = parts.join(" / ")
+  }
+
+  return { ...document, contributors, canRead, canEdit, location_path: locationPath }
 }
 
 export async function updateDocumentContent(

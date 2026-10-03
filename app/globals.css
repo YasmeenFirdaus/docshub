@@ -215,3 +215,12 @@ button,
 .bn-block-content[data-placeholder]::before {
   color: #94a3b8 !important;
 }
+
+/* Fix BlockNote image resize handles and overlay visibility */
+.bn-visual-media-wrapper > div:not(img):not(video):not(iframe) {
+  z-index: 50 !important;
+}
+
+.bn-resize-handle {
+  z-index: 50 !important;
+}

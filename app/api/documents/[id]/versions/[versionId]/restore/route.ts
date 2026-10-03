@@ -10,17 +10,11 @@ export async function POST(req: Request, { params }: { params: { id: string, ver
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const document = await canAccessDocument(params.id, session.user.id)
-    if (!document) {
+    if (!document || !document.canRead) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Only editors/owners can restore
-    const isOwner = document.owner_id === session.user.id
-    const isMember = document.workspace.members.some((m: any) => m.user_id === session.user.id && (m.role === 'ADMIN' || m.role === 'OWNER' || document.workspace_edit))
-    const isSharedEdit = document.shares.some((s: any) => s.shared_with === session.user.id && s.permission === 'EDIT')
-    const isContributor = document.contributors.some((c: any) => c.user_id === session.user.id)
-
-    if (!isOwner && !isMember && !isSharedEdit && !isContributor) {
+    if (!document.canEdit) {
       return NextResponse.json({ error: "You do not have edit permissions to restore this document" }, { status: 403 })
     }
 

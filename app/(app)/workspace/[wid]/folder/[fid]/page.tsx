@@ -275,6 +275,7 @@ export default function FolderPage() {
   const router = useRouter();
   const params = useParams();
   const fid = typeof params.fid === 'string' ? params.fid : '';
+  const wid = typeof params.wid === 'string' ? params.wid : '';
 
   const [docs, setDocs] = useState<DocumentRowData[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceNode[]>([]);
@@ -461,7 +462,7 @@ export default function FolderPage() {
         />
       )}
 
-      {showImport && <ImportModal onClose={() => setShowImport(false)} onSuccess={fetchDocs} />}
+      {showImport && <ImportModal workspaceId={wid} folderId={fid} onClose={() => setShowImport(false)} onSuccess={fetchDocs} />}
     </div>
   );
 }

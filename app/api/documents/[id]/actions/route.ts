@@ -98,69 +98,16 @@ async function getSessionUser() {
   return { session, userId, role };
 }
 
+import { canAccessDocument } from "@/lib/document";
+
 async function loadDocumentContext(documentId: string, userId: string) {
-  const doc = await prisma.document.findUnique({
-    where: { id: documentId },
-    select: {
-      id: true,
-      title: true,
-      workspace_id: true,
-      workspace: { select: { name: true } },
-      folder_id: true,
-      folder: { select: { name: true } },
-      owner_id: true,
-      visibility: true,
-      workspace_edit: true,
-      status: true,
-      is_archived: true,
-      is_deleted: true,
-      deleted_at: true,
-    },
-  });
-
-  if (!doc) return null;
-
-  const workspaceMember = await prisma.workspaceMember.findFirst({
-    where: {
-      workspace_id: doc.workspace_id,
-      user_id: userId,
-    },
-    select: { role: true },
-  });
-
-  const sharedWithUser = await prisma.documentShare.findFirst({
-    where: {
-      document_id: doc.id,
-      shared_with: userId,
-    },
-    select: { id: true, permission: true },
-  });
-  const contributor = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM document_contributors
-    WHERE document_id = ${doc.id} AND user_id = ${userId}
-    LIMIT 1
-  `;
-
-  const isOwner = doc.owner_id === userId;
-  const isWorkspaceAdmin = workspaceMember?.role === Role.ADMIN;
-
-  const canRead =
-    isOwner ||
-    isWorkspaceAdmin ||
-    (doc.visibility === "WORKSPACE" && Boolean(workspaceMember)) ||
-    Boolean(sharedWithUser);
-
-  const canEdit =
-    isOwner ||
-    isWorkspaceAdmin ||
-    contributor.length > 0 ||
-    (doc.visibility === "WORKSPACE" && doc.workspace_edit && Boolean(workspaceMember)) ||
-    sharedWithUser?.permission === "EDIT";
-
+  const docAccess = await canAccessDocument(documentId, userId);
+  if (!docAccess) return null;
+  
   return {
-    doc,
-    canRead,
-    canEdit,
+    doc: docAccess,
+    canRead: docAccess.canRead,
+    canEdit: docAccess.canEdit,
   };
 }
 
